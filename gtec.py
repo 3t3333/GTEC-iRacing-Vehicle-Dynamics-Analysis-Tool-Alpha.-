@@ -10,16 +10,25 @@ def show_splash_screen():
     clear_screen()
     
     # ASCII Art Lines
-    lines = [
-        r"      ____ _____ _____ ____  ",
-        r"     / ___|_   _| ____/ ___| ",
-        r"    | |  _  | | |  _|| |     ",
-        r"    | |_| | | | | |__| |___  ",
-        r"     \____| |_| |_____\____| ",
-        r"                             ",
-        r"    GTEC Analysis Software   ",
-        r"    (c) Gomez Systems Group  "
-    ]
+    lines = []
+    if os.path.exists("splash.txt"):
+        try:
+            with open("splash.txt", "r", encoding="utf-8") as f:
+                lines = [line.rstrip("\n") for line in f.readlines()]
+        except:
+            pass
+            
+    if not lines:
+        lines = [
+            r"      ____ _____ _____ ____  ",
+            r"     / ___|_   _| ____/ ___| ",
+            r"    | |  _  | | |  _|| |     ",
+            r"    | |_| | | | | |__| |___  ",
+            r"     \____| |_| |_____\____| ",
+            r"                             ",
+            r"    GTEC Analysis Software   ",
+            r"    (c) Gomez Systems Group  "
+        ]
 
     # Cyan (0, 255, 255) to Pink (255, 105, 180) gradient logic
     # We will interpolate between these two colors for each line
@@ -239,16 +248,25 @@ def show_exit_screen():
     clear_screen()
     
     # ASCII Art Lines
-    lines = [
-        r"      ____ _____ _____ ____  ",
-        r"     / ___|_   _| ____/ ___| ",
-        r"    | |  _  | | |  _|| |     ",
-        r"    | |_| | | | | |__| |___  ",
-        r"     \____| |_| |_____\____| ",
-        r"                             ",
-        r"    GTEC Analysis Software   ",
-        r"    (c) Gomez Systems Group  "
-    ]
+    lines = []
+    if os.path.exists("splash.txt"):
+        try:
+            with open("splash.txt", "r", encoding="utf-8") as f:
+                lines = [line.rstrip("\n") for line in f.readlines()]
+        except:
+            pass
+            
+    if not lines:
+        lines = [
+            r"      ____ _____ _____ ____  ",
+            r"     / ___|_   _| ____/ ___| ",
+            r"    | |  _  | | |  _|| |     ",
+            r"    | |_| | | | | |__| |___  ",
+            r"     \____| |_| |_____\____| ",
+            r"                             ",
+            r"    GTEC Analysis Software   ",
+            r"    (c) Gomez Systems Group  "
+        ]
 
     start_rgb = (0, 255, 255)  # Cyan
     end_rgb = (255, 20, 147)   # Deep Pink
