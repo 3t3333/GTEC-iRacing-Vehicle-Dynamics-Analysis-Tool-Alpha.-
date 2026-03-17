@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+telemetry/
+build/
+dist/
+*.spec
+gtec_config.json
+.DS_Store
+ldparser/

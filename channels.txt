@@ -1,0 +1,364 @@
+Air Pressure - Manifold
+AirDensity
+AirPressure
+AirTemp
+Alt
+Battery Voltage
+Beacon
+Brake
+Brake Pedal Position
+BrakeABSactive
+BrakeABScutPct
+BrakeRaw
+CFSRrideHeight
+CarDistAhead
+CarDistBehind
+ChanAvgLatency
+ChanClockSkew
+ChanLatency
+ChanPartnerQuality
+ChanQuality
+Clutch
+Clutch Pedal Position
+ClutchRaw
+CpuUsageBG
+CpuUsageFG
+Damper Pos FL
+Damper Pos FR
+Damper Pos RL
+Damper Pos RR
+DriverMarker
+Eng Coolant Level
+Eng Oil Press
+Eng Oil Temp
+Engine RPM
+Engine Temp
+Engine0_RPM
+EngineWarnings
+EnterExitReset
+FastRepairAvailable
+FastRepairUsed
+FogLevel
+FrameRate
+FrontTireSetsAvailable
+FrontTireSetsUsed
+Fuel Density
+Fuel Level
+Fuel Pressure
+Fuel Remaining
+FuelLevel
+FuelLevelPct
+FuelPress
+FuelUsePerHour
+G Force Lat
+G Force Long
+G Force Vert
+GPS Altitude
+Gear
+Gear
+GpuUsage
+Ground Speed
+Gyro - Pitch Angle
+Gyro - Pitch Velocity
+Gyro - Roll Angle
+Gyro - Roll Velocity
+Gyro - Yaw Angle
+Gyro - Yaw Velocity
+Gyro Pitch Angle
+Gyro Roll Angle
+Gyro Yaw Angle
+HandbrakeRaw
+IsOnTrack
+IsOnTrackCar
+LFTiresAvailable
+LFTiresUsed
+LFbrakeLinePress
+LFcoldPressure
+LFodometer
+LFpressure
+LFrideHeight
+LFshockDefl
+LFshockVel
+LFspeed
+LFtempCL
+LFtempCM
+LFtempCR
+LFtempL
+LFtempM
+LFtempR
+LFwearL
+LFwearM
+LFwearR
+LRTiresAvailable
+LRTiresUsed
+LRbrakeLinePress
+LRcoldPressure
+LRodometer
+LRpressure
+LRrideHeight
+LRshockDefl
+LRshockVel
+LRspeed
+LRtempCL
+LRtempCM
+LRtempCR
+LRtempL
+LRtempM
+LRtempR
+LRwearL
+LRwearM
+LRwearR
+Lap
+Lap Distance
+Lap Number
+LapBestLap
+LapBestLapTime
+LapBestNLapLap
+LapBestNLapTime
+LapCompleted
+LapCurrentLapTime
+LapDeltaToBestLap
+LapDeltaToBestLap_DD
+LapDeltaToBestLap_OK
+LapDeltaToOptimalLap
+LapDeltaToOptimalLap_DD
+LapDeltaToOptimalLap_OK
+LapDeltaToSessionBestLap
+LapDeltaToSessionBestLap_DD
+LapDeltaToSessionBestLap_OK
+LapDeltaToSessionLastlLap
+LapDeltaToSessionLastlLap_DD
+LapDeltaToSessionLastlLap_OK
+LapDeltaToSessionOptimalLap
+LapDeltaToSessionOptimalLap_DD
+LapDeltaToSessionOptimalLap_OK
+LapDist
+LapDistPct
+LapLasNLapSeq
+LapLastLapTime
+LapLastNLapTime
+Lat
+LatAccel
+Latitude Degrees
+Latitude Minute - fraction
+Latitude Minutes
+LeftTireSetsAvailable
+LeftTireSetsUsed
+Lon
+LongAccel
+Longitude Degrees
+Longitude Minute - fraction
+Longitude Minutes
+ManifoldPress
+ManualBoost
+ManualNoBoost
+MemPageFaultSec
+MemSoftPageFaultSec
+OilLevel
+OilPress
+OilTemp
+OnPitRoad
+P2P_Count
+P2P_Status
+PaceMode
+PitOptRepairLeft
+PitRepairLeft
+PitSvFlags
+PitSvFuel
+PitSvLFP
+PitSvLRP
+PitSvRFP
+PitSvRRP
+PitSvTireCompound
+Pitch
+PitchRate
+PitsOpen
+PitstopActive
+PlayerCarClass
+PlayerCarClassPosition
+PlayerCarDriverIncidentCount
+PlayerCarDryTireSetLimit
+PlayerCarIdx
+PlayerCarInPitStall
+PlayerCarMyIncidentCount
+PlayerCarPitSvStatus
+PlayerCarPosition
+PlayerCarPowerAdjust
+PlayerCarTeamIncidentCount
+PlayerCarTowTime
+PlayerCarWeightPenalty
+PlayerFastRepairsUsed
+PlayerIncidents
+PlayerTireCompound
+PlayerTrackSurface
+PlayerTrackSurfaceMaterial
+Precipitation
+PushToPass
+PushToTalk
+RFTiresAvailable
+RFTiresUsed
+RFbrakeLinePress
+RFcoldPressure
+RFodometer
+RFpressure
+RFrideHeight
+RFshockDefl
+RFshockVel
+RFspeed
+RFtempCL
+RFtempCM
+RFtempCR
+RFtempL
+RFtempM
+RFtempR
+RFwearL
+RFwearM
+RFwearR
+RPM
+RRTiresAvailable
+RRTiresUsed
+RRbrakeLinePress
+RRcoldPressure
+RRodometer
+RRpressure
+RRrideHeight
+RRshockDefl
+RRshockVel
+RRspeed
+RRtempCL
+RRtempCM
+RRtempCR
+RRtempL
+RRtempM
+RRtempR
+RRwearL
+RRwearM
+RRwearR
+RearTireSetsAvailable
+RearTireSetsUsed
+RelativeHumidity
+Ride Height Center
+Ride Height FL
+Ride Height FR
+Ride Height FS
+Ride Height RL
+Ride Height RR
+Ride Height Rear
+RightTireSetsAvailable
+RightTireSetsUsed
+Roll
+RollRate
+SessionFlags
+SessionJokerLapsRemain
+SessionLapsRemain
+SessionLapsRemainEx
+SessionLapsTotal
+SessionNum
+SessionOnJokerLap
+SessionState
+SessionTick
+SessionTime
+SessionTimeOfDay
+SessionTimeRemain
+SessionTimeTotal
+SessionUniqueID
+ShiftGrindRPM
+ShiftIndicatorPct
+ShiftPowerPct
+Shifter
+Skies
+SolarAltitude
+SolarAzimuth
+Speed
+Steering Wheel Angle
+Steering Wheel Torque
+SteeringWheelAngle
+SteeringWheelAngleMax
+SteeringWheelLimiter
+SteeringWheelMaxForceNm
+SteeringWheelPctDamper
+SteeringWheelPctIntensity
+SteeringWheelPctSmoothing
+SteeringWheelPctTorque
+SteeringWheelPctTorqueSign
+SteeringWheelPctTorqueSignStops
+SteeringWheelTorque
+SteeringWheelTorque_ST
+SteeringWheelUseLinear
+Susp Pos FL
+Susp Pos FR
+Susp Pos RL
+Susp Pos RR
+Throttle
+Throttle Position
+ThrottleRaw
+TireLF_RumblePitch
+TireLR_RumblePitch
+TireRF_RumblePitch
+TireRR_RumblePitch
+TireSetsAvailable
+TireSetsUsed
+TrackTemp
+TrackTempCrew
+TrackWetness
+Tyre Pres FL
+Tyre Pres FR
+Tyre Pres RL
+Tyre Pres RR
+Tyre Temp FL Centre
+Tyre Temp FL Inner
+Tyre Temp FL Outer
+Tyre Temp FR Centre
+Tyre Temp FR Inner
+Tyre Temp FR Outer
+Tyre Temp RL Centre
+Tyre Temp RL Inner
+Tyre Temp RL Outer
+Tyre Temp RR Centre
+Tyre Temp RR Inner
+Tyre Temp RR Outer
+VelocityX
+VelocityX
+VelocityY
+VelocityY
+VelocityZ
+VelocityZ
+VertAccel
+Voltage
+WaterLevel
+WaterTemp
+WeatherDeclaredWet
+Wheel Speed FL
+Wheel Speed FR
+Wheel Speed RL
+Wheel Speed RR
+WindDir
+WindVel
+Yaw
+YawNorth
+YawRate
+dcABS
+dcBrakeBias
+dcDashPage
+dcHeadlightFlash
+dcLowFuelAccept
+dcPitSpeedLimiterToggle
+dcStarter
+dcThrottleShape
+dcToggleWindshieldWipers
+dcTractionControl
+dcTriggerWindshieldWipers
+dpFastRepair
+dpFuelAddKg
+dpFuelAutoFillActive
+dpFuelAutoFillEnabled
+dpFuelFill
+dpLFTireChange
+dpLFTireColdPress
+dpLRTireChange
+dpLRTireColdPress
+dpRFTireChange
+dpRFTireColdPress
+dpRRTireChange
+dpRRTireColdPress
+dpWindshieldTearoff
