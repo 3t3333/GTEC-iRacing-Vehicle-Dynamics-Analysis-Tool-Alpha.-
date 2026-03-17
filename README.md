@@ -38,3 +38,4 @@ If you are modifying the code and want to compile your own standalone `.exe` for
 ```cmd
 pyinstaller --onefile --paths "ldparser" --collect-all matplotlib --collect-all plotly --collect-all customtkinter gtec.py
 ```# GTEC-iRacing-Vehicle-Dynamics-Analysis-Tool-Alpha.-
+# GTEC-iRacing-Vehicle-Dynamics-Analysis-Tool-Alpha.-
