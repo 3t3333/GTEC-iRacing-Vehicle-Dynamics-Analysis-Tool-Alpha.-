@@ -1,0 +1,10 @@
+		        ██╗   ██╗██████╗  █████╗ 
+			██║   ██║██╔══██╗██╔══██╗
+			██║   ██║██║  ██║███████║
+			╚██╗ ██╔╝██║  ██║██╔══██║
+			 ╚████╔╝ ██████╔╝██║  ██║
+			  ╚═══╝  ╚═════╝ ╚═╝  ╚═╝
+                         
+                  GTEC Vehicle Dynamics Analysis System    
+         Copyright © 2026 Gomez Systems Group, all rights reserved
+                                                                  

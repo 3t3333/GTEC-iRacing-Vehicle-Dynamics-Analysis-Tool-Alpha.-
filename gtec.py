@@ -20,20 +20,17 @@ def show_splash_screen():
             
     if not lines:
         lines = [
-            r"      ____ _____ _____ ____  ",
-            r"     / ___|_   _| ____/ ___| ",
-            r"    | |  _  | | |  _|| |     ",
-            r"    | |_| | | | | |__| |___  ",
-            r"     \____| |_| |_____\____| ",
-            r"                             ",
-            r"    GTEC Analysis Software   ",
-            r"    (c) Gomez Systems Group  "
+            r"██╗   ██╗██████╗  █████╗ ",
+            r"██║   ██║██╔══██╗██╔══██╗",
+            r"██║   ██║██║  ██║███████║",
+            r"╚██╗ ██╔╝██║  ██║██╔══██║",
+            r" ╚████╔╝ ██████╔╝██║  ██║",
+            r"  ╚═══╝  ╚═════╝ ╚═╝  ╚═╝"
         ]
 
-    # Cyan (0, 255, 255) to Pink (255, 105, 180) gradient logic
-    # We will interpolate between these two colors for each line
-    start_rgb = (0, 255, 255)  # Cyan
-    end_rgb = (255, 20, 147)   # Deep Pink
+    # Grey (150, 150, 150) to White (255, 255, 255) gradient logic
+    start_rgb = (150, 150, 150)  # Grey
+    end_rgb = (255, 255, 255)    # White
     
     for i, line in enumerate(lines):
         # Calculate interpolation ratio (0.0 to 1.0)
@@ -193,6 +190,8 @@ from plotly.subplots import make_subplots
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import json
+import re
+import builtins
 
 CONFIG_FILE = 'gtec_config.json'
 
@@ -258,18 +257,16 @@ def show_exit_screen():
             
     if not lines:
         lines = [
-            r"      ____ _____ _____ ____  ",
-            r"     / ___|_   _| ____/ ___| ",
-            r"    | |  _  | | |  _|| |     ",
-            r"    | |_| | | | | |__| |___  ",
-            r"     \____| |_| |_____\____| ",
-            r"                             ",
-            r"    GTEC Analysis Software   ",
-            r"    (c) Gomez Systems Group  "
+            r"██╗   ██╗██████╗  █████╗ ",
+            r"██║   ██║██╔══██╗██╔══██╗",
+            r"██║   ██║██║  ██║███████║",
+            r"╚██╗ ██╔╝██║  ██║██╔══██║",
+            r" ╚████╔╝ ██████╔╝██║  ██║",
+            r"  ╚═══╝  ╚═════╝ ╚═╝  ╚═╝"
         ]
 
-    start_rgb = (0, 255, 255)  # Cyan
-    end_rgb = (255, 20, 147)   # Deep Pink
+    start_rgb = (150, 150, 150)  # Grey
+    end_rgb = (255, 255, 255)   # White
     
     for i, line in enumerate(lines):
         ratio = i / (len(lines) - 1)
@@ -313,45 +310,6 @@ def load_telemetry(file_path):
     except Exception as e:
         print(f"[!] Error loading file: {e}")
         sys.exit(1)
-
-def perform_analysis(data, limit, channels, start_m, end_m):
-    laps = np.unique(data[channels['lap']].data)
-    results = []
-    
-    # Pre-extract data for performance
-    lap_arr = data[channels['lap']].data
-    dist_arr = data[channels['dist']].data
-    time_arr = data[channels['time']].data
-    long_arr = data[channels['long']].data
-    lat_arr = data[channels['lat']].data
-    comb_arr = np.sqrt(long_arr**2 + lat_arr**2)
-    
-    for lap in laps:
-        idx = np.where(lap_arr == lap)[0]
-        if len(idx) < 100: continue
-        
-        l_dist = dist_arr[idx]
-        
-        # Window Mask
-        mask = (l_dist >= start_m) & (l_dist <= end_m)
-        if not np.any(mask): continue
-        
-        # Metrics
-        w_time = time_arr[idx][mask]
-        w_comb = comb_arr[idx][mask]
-        
-        duration = w_time[-1] - w_time[0]
-        peak_util = (np.max(w_comb) / limit) * 100
-        avg_util = (np.mean(w_comb) / limit) * 100
-        
-        results.append({
-            'Lap': int(lap),
-            'Time': duration,
-            'Peak': peak_util,
-            'Avg': avg_util
-        })
-    
-    return results
 
 def get_static_val(data, possible_names, multiplier=1.0, fmt="{:.1f}", unit=""):
     for name in possible_names:
@@ -676,96 +634,6 @@ def run_rake_analysis(sessions):
             sys.exit(0)
         break
 
-def run_sector_analysis(sessions):
-    while True:
-        clear_screen()
-        print("="*60)
-        if len(sessions) == 1:
-            print(f" GteC | Limit: {sessions[0]['limit']:.3f}G")
-            print("="*60)
-            print(f" File: {os.path.basename(sessions[0]['file_path'])}")
-        else:
-            print(" GteC | Multi-File Sector Analysis")
-            print("="*60)
-            print(f" Files: {len(sessions)} selected")
-        print(f" Tool: Sector Analysis")
-        print("-"*60)
-        
-        try:
-            inp = input("\nEnter window (e.g., '142-316' or 'fl' for full lap), 'p' for Tools Menu, or 'q' to quit: ").strip().lower()
-            if inp == 'q':
-                show_exit_screen()
-                sys.exit(0)
-            if inp == 'p':
-                break
-            
-            is_full_lap = False
-            if inp == 'fl':
-                is_full_lap = True
-                start_m, end_m = 0.0, 0.0 # placeholders
-            elif '-' not in inp:
-                print("[!] Invalid format. Use 'Start-End' or 'fl'.")
-                input("\nPress Enter to try again...")
-                continue
-            else:
-                start_m, end_m = map(float, inp.split('-'))
-            
-            for session in sessions:
-                data = session['data']
-                limit = session['limit']
-                channels = session['channels']
-                file_path = session['file_path']
-                
-                if is_full_lap:
-                    dist_arr = data[channels['dist']].data
-                    start_m = 0.0
-                    end_m = float(np.max(dist_arr))
-
-                results = perform_analysis(data, limit, channels, start_m, end_m)
-                
-                if not results:
-                    print(f"\n[!] No data found for range {start_m}m to {end_m}m in {os.path.basename(file_path)}.")
-                else:
-                    air_temp_str = "N/A"
-                    track_temp_str = "N/A"
-                    if 'AirTemp' in data:
-                        air_temp_str = f"{data['AirTemp'].data[0]:.1f}°C"
-                    elif 'Air Temp' in data:
-                        air_temp_str = f"{data['Air Temp'].data[0]:.1f}°C"
-                        
-                    if 'TrackTemp' in data:
-                        track_temp_str = f"{data['TrackTemp'].data[0]:.1f}°C"
-                    elif 'Track Temp' in data:
-                        track_temp_str = f"{data['Track Temp'].data[0]:.1f}°C"
-
-                    print(f"\nRESULTS FOR {start_m}m to {end_m}m [{os.path.basename(file_path)} | Air: {air_temp_str} | Track: {track_temp_str}]:")
-                    print("-" * 55)
-                    print(f"{'Lap':<6} | {'Time (s)':<10} | {'Peak Util%':<12} | {'Avg Util%':<10}")
-                    print("-" * 55)
-                    
-                    # Use median to avoid unusually slow laps (spins/traffic) skewing the threshold
-                    median_time = np.median([r['Time'] for r in results])
-                    valid_times = [r['Time'] for r in results if r['Time'] >= median_time * 0.89]
-                    fastest_time = min(valid_times) if valid_times else None
-                    
-                    PINK = '\033[95m'
-                    RESET = '\033[0m'
-                    
-                    for r in sorted(results, key=lambda x: x['Time']):
-                        row_str = f"{r['Lap']:<6} | {r['Time']:<10.3f} | {r['Peak']:<11.1f}% | {r['Avg']:<10.1f}%"
-                        if r['Time'] == fastest_time:
-                            print(f"{PINK}{row_str} < FASTEST{RESET}")
-                        else:
-                            print(row_str)
-                
-            input("\nPress Enter for a new analysis...")
-            
-        except ValueError:
-            print("[!] Please enter valid numbers.")
-            input("\nPress Enter to try again...")
-        except KeyboardInterrupt:
-            sys.exit(0)
-
 def run_tire_analysis(sessions):
     while True:
         clear_screen()
@@ -1088,179 +956,6 @@ def run_sector_tire_analysis(sessions):
         except KeyboardInterrupt:
             sys.exit(0)
 
-def run_telemetry_viewer(sessions):
-    while True:
-        clear_screen()
-        print("="*60)
-        print(" GteC | Interactive Line Graph Viewer")
-        print("="*60)
-        
-        for session in sessions:
-            file_path = session['file_path']
-            data = session['data']
-            channels = session['channels']
-            print(f"\nAnalyzing: {os.path.basename(file_path)}")
-            
-            # Find Channels
-            def get_ch(names):
-                return next((ch for ch in names if ch in data), None)
-            
-            lat_g_ch = get_ch(['G Force Lat', 'LatAccel', 'LatG'])
-            speed_ch = get_ch(['Ground Speed', 'Speed'])
-            fl_spd_ch = get_ch(['Wheel Speed FL', 'LFspeed'])
-            fr_spd_ch = get_ch(['Wheel Speed FR', 'RFspeed'])
-            rl_spd_ch = get_ch(['Wheel Speed RL', 'LRspeed'])
-            rr_spd_ch = get_ch(['Wheel Speed RR', 'RRspeed'])
-            thr_ch = get_ch(['Throttle', 'Throttle Position', 'ThrottleRaw'])
-            brk_ch = get_ch(['Brake', 'Brake Pedal Position', 'BrakeRaw'])
-            gear_ch = get_ch(['Gear'])
-            
-            req = [lat_g_ch, speed_ch, fl_spd_ch, fr_spd_ch, rl_spd_ch, rr_spd_ch, thr_ch, brk_ch, gear_ch]
-            if not all(req):
-                missing = [n for n, c in zip(['LatG', 'Speed', 'FL_Spd', 'FR_Spd', 'RL_Spd', 'RR_Spd', 'Throttle', 'Brake', 'Gear'], req) if not c]
-                print(f"  [!] Missing channels for full telemetry view: {missing}")
-                continue
-                
-            lap_arr = data[channels['lap']].data
-            time_arr = data[channels['time']].data
-            dist_arr = data[channels['dist']].data
-            laps = np.unique(lap_arr)
-            
-            # Find fastest valid lap
-            lap_times = []
-            for lap in laps:
-                idx = np.where(lap_arr == lap)[0]
-                if len(idx) < 100: continue
-                lap_times.append((lap, time_arr[idx][-1] - time_arr[idx][0]))
-                
-            if not lap_times:
-                print("  [!] No valid laps found.")
-                continue
-                
-            median_time = np.median([t[1] for t in lap_times])
-            valid_laps = [t for t in lap_times if median_time * 0.89 <= t[1] <= median_time * 1.11]
-            if not valid_laps:
-                print("  [!] No laps within valid threshold.")
-                continue
-                
-            fastest_lap, fastest_time = min(valid_laps, key=lambda x: x[1])
-            idx = np.where(lap_arr == fastest_lap)[0]
-            
-            # Extract Data for Fastest Lap
-            dist = dist_arr[idx]
-            
-            def safe_get_data(ch_name):
-                try:
-                    return data[ch_name].data[idx]
-                except Exception:
-                    return np.zeros(len(idx))
-
-            lat_g = safe_get_data(lat_g_ch)
-            speed = safe_get_data(speed_ch)
-            
-            # Speeds might be in km/h or mph or m/s, but we just plot raw
-            fl_spd = safe_get_data(fl_spd_ch)
-            fr_spd = safe_get_data(fr_spd_ch)
-            front_spd_avg = (fl_spd + fr_spd) / 2.0
-            
-            rl_spd = safe_get_data(rl_spd_ch)
-            rr_spd = safe_get_data(rr_spd_ch)
-            rear_spd_avg = (rl_spd + rr_spd) / 2.0
-            
-            thr = safe_get_data(thr_ch)
-            brk = safe_get_data(brk_ch)
-            gear = safe_get_data(gear_ch)
-            
-            ans = input(f"\n  Launch telemetry graph for Lap {int(fastest_lap)} ({fastest_time:.3f}s)? (y/n): ").strip().lower()
-            if ans == 'y':
-                print("  [+] Building interactive telemetry trace... (Close the window to continue)")
-                
-                if GUI_MODE == 2:
-                    fig = make_subplots(rows=6, cols=1, shared_xaxes=True,
-                                        vertical_spacing=0.05,
-                                        subplot_titles=("Lateral G", "Front Wheel Speed & Ground Speed", "Throttle", "Brake", "Rear Wheel Speed", "Gear"))
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=lat_g, mode='lines', line=dict(color='cyan', width=1.5)), row=1, col=1)
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=front_spd_avg, mode='lines', line=dict(color='yellow', width=1.5), name='Avg Front Whl Spd'), row=2, col=1)
-                    fig.add_trace(go.Scatter(x=dist, y=speed, mode='lines', line=dict(color='deeppink', width=1.5, dash='dash'), name='Ground Speed'), row=2, col=1)
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=thr, mode='lines', line=dict(color='lime', width=1.5)), row=3, col=1)
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=brk, mode='lines', line=dict(color='red', width=1.5)), row=4, col=1)
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=rear_spd_avg, mode='lines', line=dict(color='orange', width=1.5)), row=5, col=1)
-                    
-                    fig.add_trace(go.Scatter(x=dist, y=gear, mode='lines', line=dict(color='white', width=1.5, shape='vh')), row=6, col=1)
-                    
-                    fig.update_layout(
-                        title=f"Telemetry Trace - Lap {int(fastest_lap)}<br>{os.path.basename(file_path)}",
-                        template="plotly_dark",
-                        font=dict(family="Consolas", size=11),
-                        height=900,
-                        showlegend=False
-                    )
-                    fig.update_xaxes(title_text="Lap Distance (m)", row=6, col=1)
-                    fig.show()
-
-                else:
-                    plt.style.use('dark_background')
-                    plt.rcParams['font.family'] = 'Consolas'
-                    
-                    fig, axs = plt.subplots(6, 1, figsize=(14, 10), sharex=True, num='GTEC - Telemetry Viewer')
-                    fig.suptitle(f"Telemetry Trace - Lap {int(fastest_lap)}\n{os.path.basename(file_path)}", fontsize=16, fontweight='bold')
-                    
-                    # 1. Lateral G
-                    axs[0].plot(dist, lat_g, color='cyan', linewidth=1.5)
-                    axs[0].set_ylabel("Lat G", fontsize=11)
-                    axs[0].grid(True, linestyle='--', alpha=0.3)
-                    
-                    # 2. Front Wheel Speed & Ground Speed
-                    axs[1].plot(dist, front_spd_avg, color='yellow', linewidth=1.5, label='Avg Front Whl Spd')
-                    axs[1].plot(dist, speed, color='deeppink', linewidth=1.5, linestyle='--', label='Ground Speed')
-                    axs[1].set_ylabel("Front Spd", fontsize=11)
-                    axs[1].legend(loc='upper right', fontsize=9, framealpha=0.5)
-                    axs[1].grid(True, linestyle='--', alpha=0.3)
-                    
-                    # 3. Throttle
-                    axs[2].plot(dist, thr, color='lime', linewidth=1.5)
-                    axs[2].set_ylabel("Throttle", fontsize=11)
-                    axs[2].set_ylim(-5, 105)
-                    axs[2].grid(True, linestyle='--', alpha=0.3)
-                    
-                    # 4. Brake
-                    axs[3].plot(dist, brk, color='red', linewidth=1.5)
-                    axs[3].set_ylabel("Brake", fontsize=11)
-                    axs[3].grid(True, linestyle='--', alpha=0.3)
-                    
-                    # 5. Rear Wheel Speed
-                    axs[4].plot(dist, rear_spd_avg, color='orange', linewidth=1.5)
-                    axs[4].set_ylabel("Rear Spd", fontsize=11)
-                    axs[4].grid(True, linestyle='--', alpha=0.3)
-                    
-                    # 6. Gear
-                    axs[5].plot(dist, gear, color='white', linewidth=1.5, drawstyle='steps-post')
-                    axs[5].set_ylabel("Gear", fontsize=11)
-                    axs[5].set_xlabel("Lap Distance (m)", fontsize=13)
-                    axs[5].set_yticks(np.arange(0, max(gear)+2, 1))
-                    axs[5].grid(True, linestyle='--', alpha=0.3)
-                    
-                    plt.tight_layout()
-                    # Adjust top to fit suptitle
-                    plt.subplots_adjust(top=0.92, hspace=0.15)
-    
-                    if GUI_MODE == 3:
-                        show_ctk_graph(fig, "GTEC - Telemetry Viewer")
-                    else:
-                        plt.show()
-
-        print("\n" + "="*60)
-        inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
-        if inp == 'q':
-            show_exit_screen()
-            sys.exit(0)
-        break
-
 def run_fuel_analysis(sessions):
     while True:
         clear_screen()
@@ -1364,6 +1059,540 @@ def run_fuel_analysis(sessions):
             show_exit_screen()
             sys.exit(0)
         break
+
+def run_custom_math_graph(sessions):
+    while True:
+        clear_screen()
+        print("="*60)
+        print(" GteC | Custom Math Graphing Tool (Sandbox)")
+        print("="*60)
+        
+        print("  Create a custom formula using channel names in brackets.")
+        print("  Example: ([Wheel Speed FL] + [Wheel Speed FR]) / 2")
+        print("  (Type 'c' to view all available channels in the first session)")
+        formula = input("\nEnter formula, 'p' for Tools Menu, or 'q' to quit: ").strip()
+        
+        if formula.lower() == 'q':
+            show_exit_screen()
+            sys.exit(0)
+        if formula.lower() == 'p':
+            break
+        if formula.lower() == 'c':
+            if sessions:
+                data = sessions[0]['data']
+                names = sorted([ch.name for ch in getattr(data, 'channs', []) if hasattr(ch, 'name')])
+                print("\n--- Available Channels ---")
+                for i in range(0, len(names), 3):
+                    print("  " + ", ".join(names[i:i+3]))
+            input("\nPress Enter to return...")
+            continue
+            
+        if not formula:
+            continue
+
+        channels_in_formula = re.findall(r'\[([^\]]+)\]', formula)
+        if not channels_in_formula:
+            print("  [!] No channels detected. Make sure to use [Brackets] around channel names.")
+            input("\nPress Enter to try again...")
+            continue
+
+        try:
+            inp = input("Enter window (e.g., '142-316' or 'fl' for full lap): ").strip().lower()
+            
+            is_full_lap = False
+            if inp == 'fl':
+                is_full_lap = True
+                start_m, end_m = 0.0, 0.0 # placeholders
+            elif '-' not in inp:
+                print("[!] Invalid format. Use 'Start-End' or 'fl'.")
+                input("\nPress Enter to try again...")
+                continue
+            else:
+                start_m, end_m = map(float, inp.split('-'))
+            
+            for session in sessions:
+                data = session['data']
+                channels = session['channels']
+                file_path = session['file_path']
+                
+                print(f"\nAnalyzing: {os.path.basename(file_path)}")
+                
+                missing = [ch for ch in channels_in_formula if ch not in data]
+                if missing:
+                    print(f"  [!] Missing channels in this file: {missing}")
+                    continue
+                
+                lap_arr = data[channels['lap']].data
+                dist_arr = data[channels['dist']].data
+                time_arr = data[channels['time']].data
+                
+                if is_full_lap:
+                    start_m = 0.0
+                    end_m = float(np.max(dist_arr))
+
+                laps = np.unique(lap_arr)
+                lap_times = []
+                for lap in laps:
+                    idx = np.where(lap_arr == lap)[0]
+                    if len(idx) < 100: continue
+                    lap_times.append((lap, time_arr[idx][-1] - time_arr[idx][0]))
+                    
+                if not lap_times:
+                    print("  [!] No valid laps found.")
+                    continue
+                    
+                median_time = np.median([t[1] for t in lap_times])
+                valid_laps = [t for t in lap_times if median_time * 0.89 <= t[1] <= median_time * 1.11]
+                if not valid_laps:
+                    print("  [!] No laps within valid threshold.")
+                    continue
+                    
+                fastest_lap, fastest_time = min(valid_laps, key=lambda x: x[1])
+                idx = np.where(lap_arr == fastest_lap)[0]
+                
+                l_dist = dist_arr[idx]
+                mask = (l_dist >= start_m) & (l_dist <= end_m)
+                
+                if not np.any(mask):
+                    print("  [!] No data inside that window for the fastest lap.")
+                    continue
+                
+                x_data = l_dist[mask]
+                
+                # Evaluate formula
+                local_vars = {}
+                eval_str = formula
+                for i, ch_name in enumerate(channels_in_formula):
+                    var_name = f"var_{i}"
+                    local_vars[var_name] = data[ch_name].data[idx][mask]
+                    eval_str = eval_str.replace(f"[{ch_name}]", var_name)
+                
+                try:
+                    y_data = eval(eval_str, {"np": np, "abs": abs, "max": max, "min": min}, local_vars)
+                    
+                    # If the formula was just a constant or single value, broadcast it
+                    if not isinstance(y_data, np.ndarray):
+                        y_data = np.full_like(x_data, y_data)
+                except Exception as e:
+                    print(f"  [!] Math Error: {e}")
+                    continue
+                
+                ans = input(f"\n  Launch Custom Math Graph for Lap {int(fastest_lap)}? (y/n): ").strip().lower()
+                if ans == 'y':
+                    print("  [+] Building custom interactive graph... (Close the window to continue)")
+                    
+                    if GUI_MODE == 2:
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines', line=dict(color='cyan', width=2), name='formula'))
+                        
+                        fig.update_layout(
+                            title=f"Custom Sandbox: {formula}<br>Lap {int(fastest_lap)} | {start_m}m to {end_m}m<br>{os.path.basename(file_path)}",
+                            xaxis_title="Distance (m)",
+                            yaxis_title="Result",
+                            template="plotly_dark",
+                            font=dict(family="Consolas", size=13)
+                        )
+                        fig.show()
+
+                    else:
+                        plt.style.use('dark_background')
+                        plt.rcParams['font.family'] = 'Consolas'
+                        fig = plt.figure(figsize=(12, 7), num='GTEC - Custom Sandbox Graph')
+    
+                        plt.plot(x_data, y_data, color='cyan', linewidth=2, label='formula')
+                        
+                        plt.title(f"Custom Sandbox: {formula}\nLap {int(fastest_lap)} | {start_m}m to {end_m}m\n{os.path.basename(file_path)}", fontsize=16, fontweight='bold', pad=20)
+                        plt.xlabel("Distance (m)", fontsize=13)
+                        plt.ylabel("Result", fontsize=13)
+                        plt.xticks(fontsize=11)
+                        plt.yticks(fontsize=11)
+                        plt.legend(fontsize=11, frameon=True, shadow=True)
+                        plt.grid(True, linestyle='--', alpha=0.3)
+    
+                        plt.tight_layout()
+                        
+                        if GUI_MODE == 3:
+                            show_ctk_graph(fig, "GTEC - Custom Sandbox Graph")
+                        else:
+                            plt.show()
+
+        except ValueError:
+            print("[!] Please enter valid numbers.")
+            input("\nPress Enter to try again...")
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+def run_custom_math_graph(sessions):
+    while True:
+        clear_screen()
+        print("="*60)
+        print(" GteC | Custom Math Graphing Tool (Sandbox)")
+        print("="*60)
+        
+        print("  Create a custom formula using channel names in brackets.")
+        print("  Example: ([Wheel Speed FL] + [Wheel Speed FR]) / 2")
+        print("  (Type 'c' to view all available channels in the first session)")
+        formula = input("\nEnter formula, 'p' for Tools Menu, or 'q' to quit: ").strip()
+        
+        if formula.lower() == 'q':
+            show_exit_screen()
+            sys.exit(0)
+        if formula.lower() == 'p':
+            break
+        if formula.lower() == 'c':
+            if sessions:
+                data = sessions[0]['data']
+                names = sorted([ch.name for ch in getattr(data, 'channs', []) if hasattr(ch, 'name')])
+                print("\n--- Available Channels ---")
+                for i in range(0, len(names), 3):
+                    print("  " + ", ".join(names[i:i+3]))
+            input("\nPress Enter to return...")
+            continue
+            
+        if not formula:
+            continue
+
+        channels_in_formula = re.findall(r'\[([^\]]+)\]', formula)
+        if not channels_in_formula:
+            print("  [!] No channels detected. Make sure to use [Brackets] around channel names.")
+            input("\nPress Enter to try again...")
+            continue
+
+        try:
+            inp = input("Enter window (e.g., '142-316', 'fl' for full lap, or 'fs' for full stint): ").strip().lower()
+            
+            is_full_lap = False
+            is_full_stint = False
+            if inp == 'fl':
+                is_full_lap = True
+                start_m, end_m = 0.0, 0.0 # placeholders
+            elif inp == 'fs':
+                is_full_stint = True
+                start_m, end_m = 0.0, 0.0 # placeholders
+            elif '-' not in inp:
+                print("[!] Invalid format. Use 'Start-End', 'fl', or 'fs'.")
+                input("\nPress Enter to try again...")
+                continue
+            else:
+                start_m, end_m = map(float, inp.split('-'))
+            
+            for session in sessions:
+                data = session['data']
+                channels = session['channels']
+                file_path = session['file_path']
+                
+                print(f"\nAnalyzing: {os.path.basename(file_path)}")
+                
+                missing = [ch for ch in channels_in_formula if ch not in data]
+                if missing:
+                    print(f"  [!] Missing channels in this file: {missing}")
+                    continue
+                
+                lap_arr = data[channels['lap']].data
+                dist_arr = data[channels['dist']].data
+                time_arr = data[channels['time']].data
+                
+                fastest_lap = None
+                
+                if is_full_stint:
+                    # Use time for the X-axis across the whole stint
+                    x_data = time_arr
+                    x_label = "Time (s)"
+                    title_scope = "Full Stint"
+                    
+                    local_vars = {}
+                    eval_str = formula
+                    for i, ch_name in enumerate(channels_in_formula):
+                        var_name = f"var_{i}"
+                        local_vars[var_name] = data[ch_name].data
+                        eval_str = eval_str.replace(f"[{ch_name}]", var_name)
+                        
+                else:
+                    if is_full_lap:
+                        start_m = 0.0
+                        end_m = float(np.max(dist_arr))
+
+                    laps = np.unique(lap_arr)
+                    lap_times = []
+                    for lap in laps:
+                        idx = np.where(lap_arr == lap)[0]
+                        if len(idx) < 100: continue
+                        lap_times.append((lap, time_arr[idx][-1] - time_arr[idx][0]))
+                        
+                    if not lap_times:
+                        print("  [!] No valid laps found.")
+                        continue
+                        
+                    median_time = np.median([t[1] for t in lap_times])
+                    valid_laps = [t for t in lap_times if median_time * 0.89 <= t[1] <= median_time * 1.11]
+                    if not valid_laps:
+                        print("  [!] No laps within valid threshold.")
+                        continue
+                        
+                    fastest_lap, fastest_time = min(valid_laps, key=lambda x: x[1])
+                    idx = np.where(lap_arr == fastest_lap)[0]
+                    
+                    l_dist = dist_arr[idx]
+                    mask = (l_dist >= start_m) & (l_dist <= end_m)
+                    
+                    if not np.any(mask):
+                        print("  [!] No data inside that window for the fastest lap.")
+                        continue
+                    
+                    x_data = l_dist[mask]
+                    x_label = "Distance (m)"
+                    title_scope = f"Lap {int(fastest_lap)} | {start_m}m to {end_m}m"
+                    
+                    # Evaluate formula
+                    local_vars = {}
+                    eval_str = formula
+                    for i, ch_name in enumerate(channels_in_formula):
+                        var_name = f"var_{i}"
+                        local_vars[var_name] = data[ch_name].data[idx][mask]
+                        eval_str = eval_str.replace(f"[{ch_name}]", var_name)
+                
+                try:
+                    y_data = eval(eval_str, {"np": np, "abs": abs, "max": max, "min": min}, local_vars)
+                    
+                    # If the formula was just a constant or single value, broadcast it
+                    if not isinstance(y_data, np.ndarray):
+                        y_data = np.full_like(x_data, y_data)
+                except Exception as e:
+                    print(f"  [!] Math Error: {e}")
+                    continue
+                
+                prompt_scope = "Full Stint" if is_full_stint else f"Lap {int(fastest_lap)}"
+                ans = input(f"\n  Launch Custom Math Graph for {prompt_scope}? (y/n): ").strip().lower()
+                if ans == 'y':
+                    print("  [+] Building custom interactive graph... (Close the window to continue)")
+                    
+                    if GUI_MODE == 2:
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(x=x_data, y=y_data, mode='lines', line=dict(color='cyan', width=2), name='Custom Math'))
+                        
+                        fig.update_layout(
+                            title=f"Custom Sandbox: {formula}<br>{title_scope}<br>{os.path.basename(file_path)}",
+                            xaxis_title=x_label,
+                            yaxis_title="Result",
+                            template="plotly_dark",
+                            font=dict(family="Consolas", size=13)
+                        )
+                        fig.show()
+
+                    else:
+                        plt.style.use('dark_background')
+                        plt.rcParams['font.family'] = 'Consolas'
+                        fig = plt.figure(figsize=(12, 7), num='GTEC - Custom Sandbox Graph')
+    
+                        plt.plot(x_data, y_data, color='cyan', linewidth=2, label='Custom Math')
+                        
+                        plt.title(f"Custom Sandbox: {formula}\n{title_scope}\n{os.path.basename(file_path)}", fontsize=16, fontweight='bold', pad=20)
+                        plt.xlabel(x_label, fontsize=13)
+                        plt.ylabel("Result", fontsize=13)
+                        plt.xticks(fontsize=11)
+                        plt.yticks(fontsize=11)
+                        plt.legend(fontsize=11, frameon=True, shadow=True)
+                        plt.grid(True, linestyle='--', alpha=0.3)
+    
+                        plt.tight_layout()
+                        
+                        if GUI_MODE == 3:
+                            show_ctk_graph(fig, "GTEC - Custom Sandbox Graph")
+                        else:
+                            plt.show()
+
+        except ValueError:
+            print("[!] Please enter valid numbers.")
+            input("\nPress Enter to try again...")
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+def run_automator(sessions):
+    global GUI_MODE
+    original_input = builtins.input
+    original_show = plt.show
+    global clear_screen
+    original_clear = clear_screen
+    
+    while True:
+        original_clear()
+        print("="*60)
+        print(" GteC | Preset Automator (Batch Reporting)")
+        print("="*60)
+        
+        config = load_config()
+        presets = config.get('presets', {})
+        
+        print("  Available Presets:")
+        if not presets:
+            print("    [No presets found]")
+        else:
+            for name, tools in presets.items():
+                print(f"    - {name}: [{tools}]")
+                
+        print("-" * 60)
+        print("  Commands:")
+        print("  'run [name]'    : Run a saved preset")
+        print("  'new [name]'    : Create a new preset")
+        print("  'delete [name]' : Delete a preset")
+        print("  'p'             : Back to Tools Menu")
+        
+        cmd = original_input("\nEnter command: ").strip()
+        if cmd.lower() == 'p':
+            break
+            
+        parts = cmd.split(" ", 1)
+        action = parts[0].lower()
+        name = parts[1].strip() if len(parts) > 1 else ""
+        
+        if action == 'new' and name:
+            print("\n  Available Tools (You can select any of these 7 tools):")
+            print("  1: Roll Gradient, 2: Setup Viewer, 3: Aero/Rake")
+            print("  4: Tire Temp, 5: Fuel Correlation, 6: Sector Tire Temp")
+            print("  7: Custom Sandbox")
+            tools_str = original_input("  Enter tools to run as comma-separated numbers (e.g. '1,4,7' or '1,2,3,4,5,6,7'): ").strip()
+            valid = True
+            for t in tools_str.split(','):
+                if t.strip() not in ['1','2','3','4','5','6','7']:
+                    valid = False
+            if valid:
+                presets[name] = tools_str.replace(" ", "")
+                config['presets'] = presets
+                save_config(config)
+                print(f"  [+] Preset '{name}' saved.")
+            else:
+                print("  [!] Invalid tool numbers.")
+            time.sleep(1)
+            continue
+            
+        elif action == 'delete' and name:
+            if name in presets:
+                del presets[name]
+                config['presets'] = presets
+                save_config(config)
+                print(f"  [+] Preset '{name}' deleted.")
+            else:
+                print(f"  [!] Preset '{name}' not found.")
+            time.sleep(1)
+            continue
+            
+        elif action == 'run' and name:
+            if name not in presets:
+                print(f"  [!] Preset '{name}' not found.")
+                time.sleep(1)
+                continue
+                
+            tools_to_run = [t.strip() for t in presets[name].split(',')]
+            
+            # Setup Automator Mode
+            old_gui_mode = GUI_MODE
+            GUI_MODE = 1 # Force Matplotlib for background saving
+            
+            # Create report directory
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            base_name = os.path.basename(sessions[0]['file_path']).replace('.ld','').replace('.id','')
+            report_dir = os.path.join("telemetry", "Reports", f"{base_name}_{timestamp}")
+            os.makedirs(report_dir, exist_ok=True)
+            
+            report_file_path = os.path.join(report_dir, "report.txt")
+            report_file = open(report_file_path, "w", encoding='utf-8')
+            
+            class TeeLogger:
+                def __init__(self, file):
+                    self.file = file
+                    self.terminal = sys.stdout
+                def write(self, message):
+                    clean_msg = re.sub(r'\033\[[0-9;]*m', '', message)
+                    self.file.write(clean_msg)
+                    self.terminal.write(message)
+                def flush(self):
+                    self.file.flush()
+                    self.terminal.flush()
+                    
+            sys.stdout = TeeLogger(report_file)
+            
+            def automator_clear():
+                pass
+            clear_screen = automator_clear
+            
+            def automator_plt_show(*args, **kwargs):
+                fig = plt.gcf()
+                title = fig.canvas.manager.get_window_title() if fig.canvas.manager else "Graph"
+                safe_title = re.sub(r'[^A-Za-z0-9_\-\. ]', '_', title.replace('\n', ' '))
+                filename = os.path.join(report_dir, f"{safe_title}_{time.time()}.png")
+                plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
+                plt.close(fig)
+
+            plt.show = automator_plt_show
+            
+            automator_state = {}
+            current_tool = ""
+            
+            def automator_input(prompt=""):
+                prompt_lower = prompt.lower()
+                sys.stdout.write(prompt + "\n")
+                
+                if 'enter window' in prompt_lower:
+                    if automator_state.get(f"{current_tool}_window_asked", False):
+                        return 'p'
+                    automator_state[f"{current_tool}_window_asked"] = True
+                    return 'fl'
+                    
+                if 'enter formula' in prompt_lower:
+                    if automator_state.get(f"{current_tool}_formula_asked", False):
+                        return 'p'
+                    automator_state[f"{current_tool}_formula_asked"] = True
+                    return '[Ground Speed]'
+                
+                if 'launch' in prompt_lower and '(y/n)' in prompt_lower:
+                    return 'y'
+                    
+                return ''
+                
+            builtins.input = automator_input
+            
+            print("="*60)
+            print(f" GTEC AUTOMATED REPORT: Preset '{name}'")
+            print(f" Generated: {time.ctime()}")
+            print("="*60)
+            
+            try:
+                tool_names = {
+                    '1': 'Roll Gradient Analysis',
+                    '2': 'Static Setup Viewer',
+                    '3': 'Dynamic Aero/Rake Analyzer',
+                    '4': 'Tire Temp & Pressure',
+                    '5': 'Fuel & Setup Correlation',
+                    '6': 'Sector Tire Temp Graph',
+                    '7': 'Custom Sandbox'
+                }
+                for t in tools_to_run:
+                    current_tool = t
+                    automator_state = {}
+                    t_name = tool_names.get(t, f'Tool {t}')
+                    print(f"\n\n[{t_name}]")
+                    print("-" * len(f"[{t_name}]"))
+                    if t == '1': run_roll_analysis(sessions)
+                    elif t == '2': run_setup_viewer(sessions)
+                    elif t == '3': run_rake_analysis(sessions)
+                    elif t == '4': run_tire_analysis(sessions)
+                    elif t == '5': run_fuel_analysis(sessions)
+                    elif t == '6': run_sector_tire_analysis(sessions)
+                    elif t == '7': run_custom_math_graph(sessions)
+            except Exception as e:
+                print(f"\n[!] Automator Error: {e}")
+                
+            # Cleanup
+            sys.stdout = sys.stdout.terminal
+            report_file.close()
+            
+            builtins.input = original_input
+            plt.show = original_show
+            clear_screen = original_clear
+            GUI_MODE = old_gui_mode
+            
+            print(f"\n\n[+] Report complete! Saved to: {report_dir}\n")
+            original_input("Press Enter to continue...")
 
 def main():
     global GUI_MODE
@@ -1583,42 +1812,42 @@ def main():
             else:
                 print(f" Comparing {len(sessions)} files")
             print("-" * 60)
-            print("  1. Sector Analysis")
-            print("  2. Roll Gradient Analysis")
-            print("  3. Static Setup Viewer (alpha)")
-            print("  4. Dynamic Aero/Rake Analyzer")
-            print("  5. Tire Temperature & Pressure Analysis")
-            print("  6. Fuel & Setup Correlation Analysis")
-            print("  7. Interactive Line Graph Viewer")
-            print("  8. Sector Tire Temp Performance Graph")
+            print("  1. Roll Gradient Analysis")
+            print("  2. Static Setup Viewer (alpha)")
+            print("  3. Dynamic Aero/Rake Analyzer")
+            print("  4. Tire Temperature & Pressure Analysis")
+            print("  5. Fuel & Setup Correlation Analysis")
+            print("  6. Sector Tire Temp Performance Graph")
+            print("  7. Custom Math Graphing Tool (Sandbox)")
+            print("  8. GTEC Preset Automator (Batch Report)")
             print("-" * 60)
-            
+
             tool_choice = input("\nSelect a tool (number), 'p' for Main Menu, or 'q' to quit: ").strip().lower()
             if tool_choice == 'q':
                 show_exit_screen()
                 return
             if tool_choice == 'p':
                 break
-                
+
             if tool_choice == '1':
-                run_sector_analysis(sessions)
-            elif tool_choice == '2':
                 run_roll_analysis(sessions)
-            elif tool_choice == '3':
+            elif tool_choice == '2':
                 run_setup_viewer(sessions)
-            elif tool_choice == '4':
+            elif tool_choice == '3':
                 run_rake_analysis(sessions)
-            elif tool_choice == '5':
+            elif tool_choice == '4':
                 run_tire_analysis(sessions)
-            elif tool_choice == '6':
+            elif tool_choice == '5':
                 run_fuel_analysis(sessions)
-            elif tool_choice == '7':
-                run_telemetry_viewer(sessions)
-            elif tool_choice == '8':
+            elif tool_choice == '6':
                 run_sector_tire_analysis(sessions)
+            elif tool_choice == '7':
+                run_custom_math_graph(sessions)
+            elif tool_choice == '8':
+                run_automator(sessions)
             else:
-                print("[!] Invalid selection.")
-                input("\nPress Enter to try again...")
+                print("[!] Invalid selection.")                
+                print("\nPress Enter to try again...")
 
 if __name__ == "__main__":
     try:
