@@ -8,3 +8,18 @@ dist/
 gtec_config.json
 .DS_Store
 ldparser/
+
+# Agent Workflow & Onboarding Files
+architecture_tree.txt
+splash.txt
+GMPrompt.txt
+uiformatting.txt
+uiformat.txt
+tyre_loadfeature_documentation.txt
+LEAD_ARCHITECT_DIRECTIVE.txt
+NEW_AGENT_ONBOARDING.txt
+Agent_action_log.txt
+URGENT_ARCHITECTURE_NOTICE.txt
+
+# Website Previews
+website_preview.html
