@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import ui.splash as splash
+from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph
 from core.config import get_gui_mode
 
@@ -81,11 +82,12 @@ def run_setup_prediction_engine(sessions):
 
             PINK = '\033[95m'
             CYAN = '\033[96m'
-            RESET = '\033[0m'
+            RESET = "\033[0m"
 
-            print(" ┌" + "─" * 49 + "┐")
-            print(" │ " + f"{CYAN}Baseline Front Roll:{RESET} {abs(baseline_front_m):.3f} mm/G ({baseline_front_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
-            print(" │ " + f"{CYAN}Baseline Rear Roll:{RESET}  {abs(baseline_rear_m):.3f} mm/G ({baseline_rear_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
+            print("\n ┌" + "─" * 49 + "┐")
+            print(" │ " + "[ Baseline Roll Stiffness ]".ljust(47) + " │")
+            print(" │ " + f"{CYAN}Front Roll:{RESET} {abs(baseline_front_m):.3f} mm/G ({baseline_front_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
+            print(" │ " + f"{CYAN}Rear Roll:{RESET}  {abs(baseline_rear_m):.3f} mm/G ({baseline_rear_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
             print(" └" + "─" * 49 + "┘")
             
             print("\n  Enter setup change (e.g., 'farb +10%' or 'rarb -5%')")
@@ -246,9 +248,10 @@ def run_setup_prediction_engine(sessions):
                     fig.show()
 
                 else:
-                    plt.style.use('dark_background')
+                    import matplotx
+                    plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams['font.family'] = 'Consolas'
-                    fig = plt.figure(figsize=(12, 7), num='GTEC - Setup Prediction Engine')
+                    fig = plt.figure(figsize=(12, 7), num='OpenDAV - Setup Prediction Engine')
 
                     plt.plot(x_data, actual_roll, color='cyan', linewidth=2, label='Actual Roll')
                     plt.plot(x_data, predicted_roll, color='deeppink', linewidth=2, linestyle='--', label=f'Predicted (Ghost) {axle_name} Roll')
@@ -274,11 +277,11 @@ def run_setup_prediction_engine(sessions):
                     plt.tight_layout()
                     
                     if GUI_MODE == 3:
-                        show_ctk_graph(fig, "GTEC - Setup Prediction Engine")
+                        show_ctk_graph(fig, "OpenDAV - Setup Prediction Engine")
                     else:
                         plt.show()
 
-        print("\n" + "═"*64)
+        print("\n" + "─"*100)
         inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
         if inp == 'q':
             splash.show_exit_screen()

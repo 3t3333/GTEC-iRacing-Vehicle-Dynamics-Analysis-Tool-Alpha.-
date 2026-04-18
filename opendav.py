@@ -3,6 +3,48 @@ import os
 import time
 import subprocess
 import traceback
+import builtins
+
+# PyInstaller Trace Helper (Never executed at runtime)
+if False:
+    import matplotx
+    import matplotx.styles
+    import matplotx.styles._aura
+    import scipy.interpolate
+    import scipy.stats
+    import scipy.spatial
+    # Force PyInstaller to see our internal analysis modules
+    import analysis.aero_mapping
+    import analysis.aero_rake
+    import analysis.automator
+    import analysis.downforce_mapping
+    import analysis.math_sandbox
+    import analysis.setup_prediction
+    import analysis.setup_viewer
+    import analysis.tire_fuel_windows
+    import analysis.tire_performance
+
+# Global Docked Overrides
+_orig_print = builtins.print
+_orig_input = builtins.input
+
+def _docked_print(*args, sep=' ', end='\n', file=None, flush=False):
+    if file is None or file is sys.stdout:
+        text = sep.join(str(a) for a in args)
+        lines = text.split('\n')
+        # Only add padding to non-empty lines to prevent trailing spaces on empty lines
+        docked_lines = [(" " * 23 + line) if line else "" for line in lines]
+        _orig_print('\n'.join(docked_lines), end=end, file=file, flush=flush)
+    else:
+        _orig_print(*args, sep=sep, end=end, file=file, flush=flush)
+
+def _docked_input(prompt=""):
+    lines = prompt.split('\n')
+    docked_lines = [(" " * 23 + line) if line else "" for line in lines]
+    return _orig_input('\n'.join(docked_lines))
+
+builtins.print = _docked_print
+builtins.input = _docked_input
 
 # We can import ui.splash because it has no 3rd party dependencies
 import ui.splash as splash
@@ -19,7 +61,7 @@ if __name__ == "__main__":
     
     def update_screen(text):
         global spinner_idx
-        sys.stdout.write(f"\r  Initializing System {spinner[spinner_idx % len(spinner)]} \n  {text:<60}\033[F")
+        sys.stdout.write(f"\r{' '*23}  Initializing System {spinner[spinner_idx % len(spinner)]} \n{' '*23}  {text:<60}\033[F")
         sys.stdout.flush()
         spinner_idx += 1
         time.sleep(0.05)
@@ -52,19 +94,35 @@ if __name__ == "__main__":
             subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             import pandas
 
+    # Check scipy
+    for _ in range(5): update_screen("Checking dependency: scipy...")
+    try:
+        import scipy
+    except ImportError:
+        if is_frozen:
+            update_screen("Error: scipy missing from bundle!")
+            fatal_error = True
+            time.sleep(2)
+        else:
+            update_screen("Patching: installing scipy...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "scipy"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            import scipy
+
     # Check matplotlib
     for _ in range(5): update_screen("Checking dependency: matplotlib...")
     try:
         import matplotlib.pyplot as plt
+        import matplotx
     except ImportError:
         if is_frozen:
-            update_screen("Error: matplotlib missing from bundle!")
+            update_screen("Error: matplotx missing from bundle!")
             fatal_error = True
             time.sleep(2)
         else:
-            update_screen("Patching: installing matplotlib...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            update_screen("Patching: installing matplotx...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotx"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             import matplotlib.pyplot as plt
+            import matplotx
 
     # Check plotly
     for _ in range(5): update_screen("Checking dependency: plotly...")
@@ -124,7 +182,7 @@ if __name__ == "__main__":
         print("\n[!] FATAL ERROR: Required dependencies are missing from the executable.")
         print("    PyInstaller can only bundle packages installed in the environment")
         print("    where it is run. Please run the following command in Windows cmd:")
-        print("    pip install numpy pandas matplotlib plotly customtkinter")
+        print("    pip install numpy pandas scipy matplotlib matplotx plotly customtkinter")
         print("    Then rebuild the EXE.")
         input("\nPress Enter to exit...")
         sys.exit(1)
@@ -144,20 +202,22 @@ if __name__ == "__main__":
 
 # Determine the base path (current dir or _MEIPASS for EXE)
 base_path = getattr(sys, '_MEIPASS', os.getcwd())
+sys.path.insert(0, base_path)
 
 # -------------------------------------------------------------
 # Module Imports (Safe now that dependencies are verified)
 # -------------------------------------------------------------
+import numpy as np
 from core.config import get_gui_mode, set_gui_mode, save_config, load_config
 from core.telemetry import load_telemetry, ldHead, ldData
 from analysis.setup_viewer import run_setup_viewer
-from analysis.roll_gradient import run_roll_analysis
 from analysis.aero_rake import run_rake_analysis
 from analysis.tire_performance import run_tire_analysis, run_sector_tire_analysis
-from analysis.fuel_correlation import run_fuel_analysis
+from analysis.tire_fuel_windows import run_tire_fuel_windows
 from analysis.math_sandbox import run_custom_math_graph
 from analysis.automator import run_automator
-from analysis.setup_prediction import run_setup_prediction_engine
+from analysis.tire_energy import run_tire_energy_profiler
+from analysis.suspension_histograms import run_suspension_histograms
 
 def main():
     telemetry_dir = "telemetry"
@@ -167,14 +227,28 @@ def main():
             print(f"[!] Directory '{telemetry_dir}' not found. Please create it and add .ld files.")
             sys.exit(1)
 
-        ld_files = [f for f in os.listdir(telemetry_dir) if f.lower().endswith(('.ld', '.id'))]
-        
+        from core.config import get_data_mode
+        data_mode = get_data_mode()
+
+        if data_mode == 1:
+            allowed_exts = ('.ld', '.id', '.ibt')
+            mode_name = "Auto-Detect"
+        elif data_mode == 2:
+            allowed_exts = ('.ld', '.id')
+            mode_name = "Strict MoTeC"
+        else:
+            allowed_exts = ('.ibt',)
+            mode_name = "Strict iRacing"
+
+        ld_files = [f for f in os.listdir(telemetry_dir) if f.lower().endswith(allowed_exts)]
+
         if not ld_files:
-            print(f"[!] No telemetry files (.ld or .id) found in '{telemetry_dir}'.")
-            input("Press Enter to refresh or 'q' to quit...")
+            print(f"[!] No telemetry files {allowed_exts} found in '{telemetry_dir}'.")
+            print(f"    Current Data Mode: {mode_name} (Change in Settings if needed)")
+            input("\nPress Enter to refresh or 'q' to quit...")
             continue
 
-        print("\n  Scanning telemetry files for metadata... Please wait.")
+        print(f"\n  Scanning telemetry files for metadata ({mode_name})... Please wait.")
         temp_files_info = []
         for f in ld_files:
             f_path = os.path.join(telemetry_dir, f)
@@ -182,6 +256,26 @@ def main():
             laps_count = 0
             air_temp_str = "N/A"
             track_temp_str = "N/A"
+            
+            if f.lower().endswith('.ibt'):
+                try:
+                    from core import ibt_adapter
+                    # Use meta_only=True for blazingly fast menu scanning
+                    d = ibt_adapter.fromfile(f_path, meta_only=True)
+                    driver = getattr(d.head, 'driver', 'iRacing User')
+                    car = getattr(d.head, 'vehicleid', 'iRacing Car')
+                    venue = getattr(d.head, 'venue', 'iRacing Track')
+                    display_name = f"{driver} - {car} - {venue}"
+                    
+                    if 'Lap' in d:
+                        laps_count = len(np.unique(d['Lap'].data))
+                except Exception:
+                    display_name = f"{f} [iRacing Telemetry]"
+                    laps_count = 0
+                
+                temp_files_info.append((laps_count, f, display_name))
+                continue
+
             try:
                 with open(f_path, 'rb') as f_obj:
                     h = ldHead.fromfile(f_obj)
@@ -227,120 +321,54 @@ def main():
 
         splash.show_home_screen()
         
-        session_choice = input("\nSelect session type (number) or 'q' to quit: ").strip().lower()
+        session_choice = input("\nSelect option (number) or 'q' to quit: ").strip().lower()
         if session_choice == 'q':
             splash.show_exit_screen()
             return
         
-        if session_choice == '4':
-            splash.show_help_screen()
+        if session_choice == '2':
+            from analysis.projects import run_project_manager
+            run_project_manager()
             continue
         
         if session_choice == '3':
-            while True:
-                splash.print_header("Settings")
-                current_gui_mode = get_gui_mode()
-                if current_gui_mode == 1:
-                    status = "1 (Legacy Matplotlib)"
-                elif current_gui_mode == 2:
-                    status = "2 (Plotly Web Beta)"
-                else:
-                    status = "3 (CustomTkinter Beta)"
-                    
-                print(f"  1. Cycle GUI Mode    [Current: {status}]")
-                print("═" * 64)
-                s_choice = input("\nSelect an option to cycle (number) or 'p' to go back: ").strip().lower()
-                if s_choice == 'p':
-                    break
-                elif s_choice == '1':
-                    new_mode = current_gui_mode + 1
-                    if new_mode > 3:
-                        new_mode = 1
-                    set_gui_mode(new_mode)
-                    save_config({'gui_mode': new_mode})
-                else:
-                    print("[!] Invalid selection.")
-                    time.sleep(1)
+            splash.show_help_screen()
             continue
-            
-        if session_choice not in ('1', '2'):
+        
+        if session_choice == '4':
+            from ui.settings import show_settings
+            show_settings()
+            continue
+        if session_choice != '1':
             print("[!] Invalid selection.")
+            import time
             time.sleep(1)
             continue
             
-        is_multi = (session_choice == '2')
         selected_files = []
         go_back = False
         
-        if not is_multi:
-            splash.print_header("Telemetry Archive")
-            for i, info in enumerate(file_infos):
-                print(f"  {i + 1}. {info}")
-            print("═" * 64)
-
-            while True:
-                choice = input("\nSelect a file to analyze (number), 'p' for previous menu, or 'q' to quit: ").strip().lower()
-                if choice == 'q':
-                    splash.show_exit_screen()
-                    sys.exit(0)
-                if choice == 'p':
-                    go_back = True
+        splash.print_header("Telemetry Archive")
+        for i, info in enumerate(file_infos):
+            print(f"  {i + 1}. {info}")
+        print("─" * 100)
+        while True:
+            choice = input("\nSelect a file to analyze (number), 'p' for previous menu, or 'q' to quit: ").strip().lower()
+            if choice == 'q':
+                splash.show_exit_screen()
+                sys.exit(0)
+            if choice == 'p':
+                go_back = True
+                break
+            try:
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(ld_files):
+                    selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
                     break
-                try:
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(ld_files):
-                        selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
-                        break
-                    else:
-                        print("[!] Invalid selection.")
-                except ValueError:
-                    print("[!] Please enter a valid number.")
-        else:
-            while True:
-                splash.print_header("Telemetry Archive (Multi-File)")
-                for i, info in enumerate(file_infos):
-                    print(f"  {i + 1}. {info}")
-                print("═" * 64)
-                if selected_files:
-                    print(f"\nCurrently selected ({len(selected_files)}):")
-                    for sf in selected_files:
-                        print(f"  - {os.path.basename(sf)}")
-                
-                print("\nOptions:")
-                print("  [Number] Select file to add")
-                print("  [d]      Information sum met (done selecting)")
-                print("  [p]      Previous menu")
-                print("  [q]      Quit")
-                
-                choice = input("\nSelect an option: ").strip().lower()
-                if choice == 'q':
-                    splash.show_exit_screen()
-                    sys.exit(0)
-                if choice == 'p':
-                    go_back = True
-                    break
-                if choice == 'd':
-                    if len(selected_files) < 2:
-                        print("[!] Please select at least two files for comparison.")
-                        time.sleep(1)
-                        continue
-                    break
-                    
-                try:
-                    choice_idx = int(choice) - 1
-                    if 0 <= choice_idx < len(ld_files):
-                        file_path = os.path.join(telemetry_dir, ld_files[choice_idx])
-                        if file_path not in selected_files:
-                            selected_files.append(file_path)
-                        else:
-                            print("[!] File already selected.")
-                            time.sleep(1)
-                    else:
-                        print("[!] Invalid selection.")
-                        time.sleep(1)
-                except ValueError:
-                    print("[!] Please enter a valid option.")
-                    time.sleep(1)
+                else:
+                    print("[!] Invalid selection.")
+            except ValueError:
+                print("[!] Please enter a valid number.")
 
         if go_back:
             continue
@@ -363,17 +391,17 @@ def main():
                 print(f" File: {sessions[0]['file_path']}")
             else:
                 print(f" Comparing {len(sessions)} files")
-            print("═" * 64)
-            print("  1. Roll Gradient Analysis")
+            print("─" * 100)
+            print("  1. Tire Energy & Work Profiler")
             print("  2. Static Setup Viewer (alpha)")
             print("  3. Dynamic Aero/Rake Analyzer")
-            print("  4. Tire Temperature & Pressure Analysis")
-            print("  5. Fuel & Setup Correlation Analysis")
-            print("  6. Sector Tire Temp Performance Graph")
-            print("  7. Custom Math Graphing Tool (Sandbox)")
-            print("  8. GTEC Preset Automator (Batch Report)")
-            print("  9. Setup Prediction Engine (Alpha)")
-            print("═" * 64)
+            print("  4. Tire & Fuel Windows")
+            print("  5. Sector Tire Temp & Load Mapping")
+            print("  6. Custom Math Graphing Tool (Sandbox)")
+            print("  7. Empirical Aero Map Generator (GUI Support)")
+            print("  8. Downforce Mapping Module (GUI Support)")
+            print("  9. Pitch Kinematics & Platform Analyzer")
+            print("─" * 100)
 
             tool_choice = input("\nSelect a tool (number), 'p' for Main Menu, or 'q' to quit: ").strip().lower()
             if tool_choice == 'q':
@@ -383,23 +411,26 @@ def main():
                 break
 
             if tool_choice == '1':
-                run_roll_analysis(sessions)
+                run_tire_energy_profiler(sessions)
             elif tool_choice == '2':
                 run_setup_viewer(sessions)
             elif tool_choice == '3':
                 run_rake_analysis(sessions)
             elif tool_choice == '4':
-                run_tire_analysis(sessions)
+                run_tire_fuel_windows(sessions)
             elif tool_choice == '5':
-                run_fuel_analysis(sessions)
-            elif tool_choice == '6':
                 run_sector_tire_analysis(sessions)
-            elif tool_choice == '7':
+            elif tool_choice == '6':
                 run_custom_math_graph(sessions)
+            elif tool_choice == '7':
+                from analysis.aero_mapping import run_aero_mapping
+                run_aero_mapping(sessions)
             elif tool_choice == '8':
-                run_automator(sessions)
+                from analysis.downforce_mapping import run_downforce_mapping
+                run_downforce_mapping(sessions)
             elif tool_choice == '9':
-                run_setup_prediction_engine(sessions)
+                from analysis.pitch_kinematics import run_pitch_analyzer
+                run_pitch_analyzer(sessions)
             else:
                 print("[!] Invalid selection.")                
                 print("\nPress Enter to try again...")

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import ui.splash as splash
+from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph
 from core.config import get_gui_mode
 
@@ -17,6 +18,7 @@ def run_tire_analysis(sessions):
             data = session['data']
             channels = session['channels']
             print(f"\nAnalyzing: {os.path.basename(file_path)}")
+            print_session_metadata(data, channels, session.get('metadata', {}))
             
             # Find Tire Temp Channels
             fl_t_chs = [ch for ch in ['Tyre Temp FL Inner', 'Tyre Temp FL Centre', 'Tyre Temp FL Outer', 'LFtempL', 'LFtempM', 'LFtempR'] if ch in data]
@@ -29,96 +31,67 @@ def run_tire_analysis(sessions):
             fr_p_ch = next((ch for ch in ['Tyre Pres FR', 'RFpressure', 'dpRFTireColdPress'] if ch in data), None)
             rl_p_ch = next((ch for ch in ['Tyre Pres RL', 'LRpressure', 'dpLRTireColdPress'] if ch in data), None)
             rr_p_ch = next((ch for ch in ['Tyre Pres RR', 'RRpressure', 'dpRRTireColdPress'] if ch in data), None)
-
-            if not (fl_t_chs and fr_t_chs and rl_t_chs and rr_t_chs):
+            
+            if not (fl_t_chs or fr_t_chs or rl_t_chs or rr_t_chs):
                 print("  [!] Missing required tire temperature channels.")
                 continue
 
-            lap_arr = data[channels['lap']].data
-            time_arr = data[channels['time']].data
-            laps = np.unique(lap_arr)
-            lap_data = []
+            def get_stats(chs):
+                if not chs: return "N/A", "N/A", "N/A"
+                temps = []
+                for ch in chs:
+                    temps.extend(data[ch].data)
+                return np.min(temps), np.max(temps), np.mean(temps)
 
-            def get_temp_stats(chs, idx):
-                temps = np.mean([data[ch].data[idx] for ch in chs], axis=0)
-                return np.mean(temps), np.max(temps)
+            def get_p_stats(ch):
+                if not ch: return "N/A", "N/A", "N/A"
+                vals = data[ch].data
+                if 'kPa' in data[ch].unit or 'kpa' in data[ch].unit.lower() or np.mean(vals) > 100:
+                    vals = vals * 0.145038 # convert to psi
+                return np.min(vals), np.max(vals), np.mean(vals)
 
-            for lap in laps:
-                idx = np.where(lap_arr == lap)[0]
-                if len(idx) < 100: continue
-                lap_time = time_arr[idx][-1] - time_arr[idx][0]
-                
-                fl_t_avg, fl_t_peak = get_temp_stats(fl_t_chs, idx)
-                fr_t_avg, fr_t_peak = get_temp_stats(fr_t_chs, idx)
-                rl_t_avg, rl_t_peak = get_temp_stats(rl_t_chs, idx)
-                rr_t_avg, rr_t_peak = get_temp_stats(rr_t_chs, idx)
+            fl_min, fl_max, fl_avg = get_stats(fl_t_chs)
+            fr_min, fr_max, fr_avg = get_stats(fr_t_chs)
+            rl_min, rl_max, rl_avg = get_stats(rl_t_chs)
+            rr_min, rr_max, rr_avg = get_stats(rr_t_chs)
 
-                avg_temp = np.mean([fl_t_avg, fr_t_avg, rl_t_avg, rr_t_avg])
-                peak_temp = np.max([fl_t_peak, fr_t_peak, rl_t_peak, rr_t_peak])
-                
-                fl_p = np.mean(data[fl_p_ch].data[idx]) if fl_p_ch else 0
-                fr_p = np.mean(data[fr_p_ch].data[idx]) if fr_p_ch else 0
-                rl_p = np.mean(data[rl_p_ch].data[idx]) if rl_p_ch else 0
-                rr_p = np.mean(data[rr_p_ch].data[idx]) if rr_p_ch else 0
-                
-                avg_press = np.mean([fl_p, fr_p, rl_p, rr_p])
-                if avg_press > 100:  # Assuming kPa and converting to psi
-                    avg_press *= 0.145038
-
-                lap_data.append({
-                    'lap': int(lap),
-                    'time': lap_time,
-                    'avg_temp': avg_temp,
-                    'peak_temp': peak_temp,
-                    'avg_press': avg_press
-                })
-
-            if not lap_data:
-                print("  [!] No valid lap data found.")
-                continue
-
-            # Identify valid laps
-            median_time = np.median([ld['time'] for ld in lap_data])
-            valid_laps = [ld for ld in lap_data if median_time * 0.89 <= ld['time'] <= median_time * 1.11]
-
-            if not valid_laps:
-                print("  [!] Not enough valid laps to determine optimal settings.")
-                continue
-
-            valid_laps.sort(key=lambda x: x['time'])
-            fastest_lap = valid_laps[0]
+            fl_p_min, fl_p_max, fl_p_avg = get_p_stats(fl_p_ch)
+            fr_p_min, fr_p_max, fr_p_avg = get_p_stats(fr_p_ch)
+            rl_p_min, rl_p_max, rl_p_avg = get_p_stats(rl_p_ch)
+            rr_p_min, rr_p_max, rr_p_avg = get_p_stats(rr_p_ch)
 
             PINK = '\033[95m'
+            CYAN = '\033[96m'
             RESET = '\033[0m'
             
-            print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + f"{PINK}[ OPTIMAL SETUP (Based on fastest lap {fastest_lap['lap']}) ]{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
-            print(" │ " + f"Fastest Time:     {fastest_lap['time']:.3f} s".ljust(47) + " │")
-            print(" │ " + f"Optimal Avg Temp: {fastest_lap['avg_temp']:.1f}°C".ljust(47) + " │")
-            print(" │ " + f"Optimal Peak Temp:{fastest_lap['peak_temp']:.1f}°C".ljust(47) + " │")
-            print(" │ " + f"Optimal Avg Press:{fastest_lap['avg_press']:.1f} psi".ljust(47) + " │")
-            print(" └" + "─" * 49 + "┘")
-
-            print("\n  [ TEMPERATURE SPREAD ACROSS ALL LAPS ]")
-            print(f"  {'Lap':<5} | {'Time (s)':<10} | {'Avg Temp':<10} | {'Peak Temp':<10} | {'Avg Press':<10}")
-            print("  " + "─" * 60)
+            print("\n ┌" + "─" * 58 + "┐")
+            print(" │ " + "[ TIRE TEMPERATURES (°C) ]".ljust(56) + " │")
             
-            times = [ld['time'] for ld in valid_laps]
-            min_t, max_t = min(times), max(times)
-            range_t = max_t - min_t if max_t != min_t else 1
-
-            for ld in valid_laps:
-                ratio = (ld['time'] - min_t) / range_t
-                if ratio < 0.33:
-                    color = '\033[92m' # Green
-                elif ratio < 0.66:
-                    color = '\033[93m' # Yellow
-                else:
-                    color = '\033[91m' # Red
+            def format_t_line(name, cmin, cmax, cavg):
+                if cmin == "N/A": return f"{name}: [MISSING]".ljust(56)
+                return f"{name}: [{cmin:>4.1f} to {cmax:>4.1f}]  Avg: {CYAN}{cavg:.1f}{RESET}".ljust(56 + len(CYAN) + len(RESET))
                 
-                print(f"  {color}{ld['lap']:<5} | {ld['time']:<10.3f} | {ld['avg_temp']:<8.1f}°C | {ld['peak_temp']:<8.1f}°C | {ld['avg_press']:<8.1f} psi{RESET}")
+            print(" │ " + format_t_line("Front Left ", fl_min, fl_max, fl_avg) + " │")
+            print(" │ " + format_t_line("Front Right", fr_min, fr_max, fr_avg) + " │")
+            print(" │ " + format_t_line("Rear Left  ", rl_min, rl_max, rl_avg) + " │")
+            print(" │ " + format_t_line("Rear Right ", rr_min, rr_max, rr_avg) + " │")
+            print(" └" + "─" * 58 + "┘")
 
-        print("\n" + "═"*64)
+            if fl_p_min != "N/A":
+                print(" ┌" + "─" * 58 + "┐")
+                print(" │ " + "[ TIRE PRESSURES (psi) ]".ljust(56) + " │")
+                
+                def format_p_line(name, pmin, pmax, pavg):
+                    if pmin == "N/A": return f"{name}: [MISSING]".ljust(56)
+                    return f"{name}: [{pmin:>4.1f} to {pmax:>4.1f}]  Avg: {PINK}{pavg:.1f}{RESET}".ljust(56 + len(PINK) + len(RESET))
+                    
+                print(" │ " + format_p_line("Front Left ", fl_p_min, fl_p_max, fl_p_avg) + " │")
+                print(" │ " + format_p_line("Front Right", fr_p_min, fr_p_max, fr_p_avg) + " │")
+                print(" │ " + format_p_line("Rear Left  ", rl_p_min, rl_p_max, rl_p_avg) + " │")
+                print(" │ " + format_p_line("Rear Right ", rr_p_min, rr_p_max, rr_p_avg) + " │")
+                print(" └" + "─" * 58 + "┘")
+
+        print("\n" + "─"*100)
         inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
         if inp == 'q':
             splash.show_exit_screen()
@@ -128,210 +101,248 @@ def run_tire_analysis(sessions):
 def run_sector_tire_analysis(sessions):
     while True:
         splash.print_header("Sector Tire Temp Performance Graph")
+        print("\n  This tool analyzes how cornering tire temperatures correlate with lap times.")
+        print("  It plots empirical data and mathematically estimates the optimal temperature window.")
         
-        try:
-            inp = input("\nEnter window (e.g., '142-316' or 'fl' for full lap), 'p' for Tools Menu, or 'q' to quit: ").strip().lower()
-            if inp == 'q':
-                splash.show_exit_screen()
-                sys.exit(0)
-            if inp == 'p':
-                break
+        print("\n  Enter track distance window (e.g. '140-300') or 'fl' for Full Lap.")
+        inp = input("  Window: ").strip().lower()
+        
+        if inp == 'q':
+            splash.show_exit_screen()
+            sys.exit(0)
+        if inp == 'p':
+            break
             
-            is_full_lap = False
-            if inp == 'fl':
-                is_full_lap = True
-                start_m, end_m = 0.0, 0.0 # placeholders
-            elif '-' not in inp:
-                print("[!] Invalid format. Use 'Start-End' or 'fl'.")
-                input("\nPress Enter to try again...")
+        is_full_lap = False
+        if inp == 'fl':
+            is_full_lap = True
+            start_m, end_m = 0, 0
+        else:
+            if '-' not in inp:
+                print("  [!] Invalid format. Try 'Start-End' or 'fl'.")
+                input("\nPress Enter to return...")
                 continue
-            else:
+                
+            try:
                 start_m, end_m = map(float, inp.split('-'))
+            except ValueError:
+                print("  [!] Invalid format. Must be numbers.")
+                input("\nPress Enter to return...")
+                continue
             
-            for session in sessions:
-                data = session['data']
-                channels = session['channels']
-                file_path = session['file_path']
+        scope_text = "FULL LAP" if is_full_lap else f"SECTOR {start_m}m to {end_m}m"
+            
+        for session in sessions:
+            data = session['data']
+            channels = session['channels']
+            file_path = session['file_path']
+            
+            print(f"\nAnalyzing: {os.path.basename(file_path)}")
+            print_session_metadata(data, channels, session.get('metadata', {}))
+            
+            # Find Tire Temp Channels
+            fl_t_chs = [ch for ch in ['Tyre Temp FL Inner', 'Tyre Temp FL Centre', 'Tyre Temp FL Outer', 'LFtempL', 'LFtempM', 'LFtempR'] if ch in data]
+            fr_t_chs = [ch for ch in ['Tyre Temp FR Inner', 'Tyre Temp FR Centre', 'Tyre Temp FR Outer', 'RFtempL', 'RFtempM', 'RFtempR'] if ch in data]
+            rl_t_chs = [ch for ch in ['Tyre Temp RL Inner', 'Tyre Temp RL Centre', 'Tyre Temp RL Outer', 'LRtempL', 'LRtempM', 'LRtempR'] if ch in data]
+            rr_t_chs = [ch for ch in ['Tyre Temp RR Inner', 'Tyre Temp RR Centre', 'Tyre Temp RR Outer', 'RRtempL', 'RRtempM', 'RRtempR'] if ch in data]
+            
+            all_t_chs = fl_t_chs + fr_t_chs + rl_t_chs + rr_t_chs
+            
+            if not all_t_chs:
+                print("  [!] Missing required tire temperature channels.")
+                continue
                 
-                print(f"\nAnalyzing: {os.path.basename(file_path)}")
+            dist_arr = data[channels['dist']].data
+            lap_arr = data[channels['lap']].data
+            time_arr = data[channels['time']].data
+            
+            laps = np.unique(lap_arr)
+            
+            lap_metrics = [] # (lap_time, avg_sector_temp)
+            
+            # Get valid laps first to find median
+            temp_lap_times = []
+            for lap in laps:
+                idx = np.where(lap_arr == lap)[0]
+                if len(idx) < 100: continue
+                temp_lap_times.append((lap, time_arr[idx][-1] - time_arr[idx][0], idx))
                 
-                # Find Tire Temp Channels
-                fl_t_chs = [ch for ch in ['Tyre Temp FL Inner', 'Tyre Temp FL Centre', 'Tyre Temp FL Outer', 'LFtempL', 'LFtempM', 'LFtempR'] if ch in data]
-                fr_t_chs = [ch for ch in ['Tyre Temp FR Inner', 'Tyre Temp FR Centre', 'Tyre Temp FR Outer', 'RFtempL', 'RFtempM', 'RFtempR'] if ch in data]
-                rl_t_chs = [ch for ch in ['Tyre Temp RL Inner', 'Tyre Temp RL Centre', 'Tyre Temp RL Outer', 'LRtempL', 'LRtempM', 'LRtempR'] if ch in data]
-                rr_t_chs = [ch for ch in ['Tyre Temp RR Inner', 'Tyre Temp RR Centre', 'Tyre Temp RR Outer', 'RRtempL', 'RRtempM', 'RRtempR'] if ch in data]
-                
-                all_t_chs = fl_t_chs + fr_t_chs + rl_t_chs + rr_t_chs
-                
-                if not all_t_chs:
-                    print("  [!] Missing required tire temperature channels.")
-                    continue
-
-                lap_arr = data[channels['lap']].data
-                dist_arr = data[channels['dist']].data
-                time_arr = data[channels['time']].data
-                
+            if not temp_lap_times: continue
+            
+            median_time = np.median([t[1] for t in temp_lap_times])
+            valid_laps = [t for t in temp_lap_times if median_time * 0.89 <= t[1] <= median_time * 1.11]
+            
+            for lap, lap_time, l_idx in valid_laps:
+                l_dist = dist_arr[l_idx]
                 if is_full_lap:
-                    start_m = 0.0
-                    end_m = float(np.max(dist_arr))
-                laps = np.unique(lap_arr)
-                lap_data = []
-
-                for lap in laps:
-                    idx = np.where(lap_arr == lap)[0]
-                    if len(idx) < 100: continue
-                    
-                    l_dist = dist_arr[idx]
-                    
-                    # Window Mask
+                    mask = np.ones_like(l_dist, dtype=bool)
+                else:
                     mask = (l_dist >= start_m) & (l_dist <= end_m)
-                    if not np.any(mask): continue
-                    
-                    w_time = time_arr[idx][mask]
-                    duration = w_time[-1] - w_time[0]
-                    
-                    # Get average tire temperature in the sector across all available sensors
-                    temps = []
-                    for ch in all_t_chs:
-                        ch_data = data[ch].data[idx][mask]
-                        temps.append(np.mean(ch_data))
-                    
-                    avg_temp = np.mean(temps)
-                    lap_data.append({
-                        'lap': int(lap),
-                        'time': duration,
-                        'temp': avg_temp
-                    })
-
-                if not lap_data:
-                    print("  [!] No valid data found for that window.")
-                    continue
-
-                # Identify valid laps (filter out heavy traffic/spins)
-                median_time = np.median([ld['time'] for ld in lap_data])
-                valid_laps = [ld for ld in lap_data if median_time * 0.85 <= ld['time'] <= median_time * 1.15]
-
-                if len(valid_laps) < 3:
-                    print("  [!] Not enough valid laps to build a correlation graph.")
-                    continue
-
-                temps = np.array([ld['temp'] for ld in valid_laps])
-                times = np.array([ld['time'] for ld in valid_laps])
                 
-                print(f"  [+] Found {len(valid_laps)} valid laps. Ready to graph.")
+                if not np.any(mask): continue
+                
+                sector_temps = []
+                for ch in all_t_chs:
+                    sector_temps.extend(data[ch].data[l_idx][mask])
+                    
+                if sector_temps:
+                    avg_temp = np.mean(sector_temps)
+                    lap_metrics.append((lap_time, avg_temp))
+                    
+            if len(lap_metrics) < 3:
+                print("  [!] Not enough valid laps to build a correlation graph.")
+                continue
+                
+            times = np.array([m[0] for m in lap_metrics])
+            temps = np.array([m[1] for m in lap_metrics])
+            
+            # Fit polynomial curve (Quadratic)
+            coeffs = np.polyfit(temps, times, 2)
+            p = np.poly1d(coeffs)
+            
+            # Calculate optimal temp using Derivative F'(x) = 0
+            # For quadratic y = ax^2 + bx + c, the derivative is 2ax + b.
+            # Setting 2ax + b = 0 gives x = -b / (2a)
+            # We want the minimum lap time, which is the vertex of a U-shaped parabola (a > 0).
+            if coeffs[0] > 0:
+                optimal_temp = -coeffs[1] / (2 * coeffs[0])
+            else:
+                # If a <= 0, it's an inverted parabola. Fall back to the absolute fastest lap temp.
+                optimal_temp = temps[np.argmin(times)]
+            
+            PINK = '\033[95m'
+            RESET = '\033[0m'
+            print(" ┌" + "─" * 49 + "┐")
+            print(" │ " + f"[ {scope_text} PERFORMANCE ]".ljust(47) + " │")
+            print(" │ " + f"Analyzed {len(lap_metrics)} valid laps.".ljust(47) + " │")
+            print(" │ " + f"Calculated Optimal Temp: {PINK}{optimal_temp:.1f} °C{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
+            print(" └" + "─" * 49 + "┘")
+            
+            md = session.get('metadata', {})
+            car_name = md.get('car', 'UNKNOWN')
+            file_basename = os.path.basename(file_path)
 
-                ans = input(f"\n  Launch interactive scatter plot for {os.path.basename(file_path)}? (y/n): ").strip().lower()
-                if ans == 'y':
-                    print("  [+] Building interactive graph... (Close the graph window to continue)")
-                    gui_mode = get_gui_mode()
-                    if gui_mode == 2:
-                        fig = go.Figure()
-                        
-                        fig.add_trace(go.Scatter(x=temps, y=times, mode='markers',
-                                                 marker=dict(color='cyan', size=10, opacity=0.8),
-                                                 name='Lap Data'))
-                                                 
-                        # Empirical Optimal Temp
-                        sorted_indices = np.argsort(times)
-                        top_n = min(3, len(times))
-                        fastest_laps_idx = sorted_indices[:top_n]
-                        
-                        emp_opt_temp = np.mean(temps[fastest_laps_idx])
-                        emp_opt_time = np.mean(times[fastest_laps_idx])
-                        
-                        fig.add_trace(go.Scatter(x=[emp_opt_temp], y=[emp_opt_time], mode='markers',
-                                                 marker=dict(color='yellow', size=20, symbol='star'),
-                                                 name=f'Optimal (Top {top_n} Avg): {emp_opt_temp:.1f}°C'))
-                        
-                        fig.add_vline(x=emp_opt_temp, line=dict(color='yellow', dash='dot'), opacity=0.5)
+            l3_preview = f"""
+        L3: TIRE TEMP VS LAP TIME (QUADRATIC) 
+ ┌─────────────────────────────────────────┐
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │                                         │
+ │ [X] AXIS: AVG TIRE TEMP (°C)            │
+ │ [Y] AXIS: LAP TIME (s)                  │
+ │ [L] LINE: QUADRATIC TREND               │
+ └─────────────────────────────────────────┘
+ 
+  FILE: {file_basename}
+  VEHICLE: {car_name}
+  
+  >> [USE CASE]: IDENTIFY THE THERMAL OPTIMAL WINDOW BY CORRELATING TIRE HEAT TO LAP PACING."""
+            print(l3_preview)
 
-                        try:
-                            coeffs = np.polyfit(temps, times, 2)
-                            p = np.poly1d(coeffs)
+            while True:
+                ans = input(f"\n  Select action ('open L3', 'print L3', 'p' to go back): ").strip().lower()
+                
+                if ans == 'p':
+                    break
+                    
+                if ans in ['open l3', 'print l3']:
+                    t_min = np.min(temps) - 2
+                    t_max = np.max(temps) + 2
+                    t_curve = np.linspace(t_min, t_max, 100)
+                    time_curve = p(t_curve)
+                    
+                    title_scope = f"{scope_text} Correlation"
+                    
+                    if ans == 'open l3':
+                        print("  [+] Building correlation graph... (Close the window to continue)")
+                        GUI_MODE = get_gui_mode()
+                        if GUI_MODE == 2:
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(x=temps, y=times, mode='markers', marker=dict(size=8, color='cyan'), name='Lap Data'))
+                            fig.add_trace(go.Scatter(x=t_curve, y=time_curve, mode='lines', line=dict(color='deeppink', dash='dash'), name='Trend Curve'))
+                            fig.add_vline(x=optimal_temp, line_width=2, line_dash="dash", line_color="gold", annotation_text="Optimal Window")
+                            fig.update_layout(
+                                title=f"Tire Temperature vs Lap Time<br>{title_scope}<br>{file_basename}",
+                                xaxis_title=f"Avg {scope_text.capitalize()} Tire Temp (°C)",
+                                yaxis_title="Lap Time (s)",
+                                template="plotly_dark",
+                                font=dict(family="Consolas", size=13)
+                            )
+                            fig.show()
+                        else:
+                            import matplotx
+                            plt.style.use(matplotx.styles.aura['dark'])
+                            plt.rcParams['font.family'] = 'Consolas'
+                            fig = plt.figure(figsize=(12, 7), num='OpenDAV - Sector Tire Analysis')
+                            plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data')
+                            plt.plot(t_curve, time_curve, color='deeppink', linestyle='--', linewidth=2, label='Performance Trend')
+                            plt.axvline(x=optimal_temp, color='gold', linestyle='-', linewidth=2, label=f'Calculated Optimal ({optimal_temp:.1f}°C)')
+                            plt.title(f"Tire Temperature vs Lap Time\n{title_scope}\n{file_basename}", fontsize=16, fontweight='bold', pad=20)
+                            plt.xlabel(f"Average {scope_text.capitalize()} Tire Temp (°C)", fontsize=13)
+                            plt.ylabel("Lap Time (s)", fontsize=13)
+                            plt.xticks(fontsize=11)
+                            plt.yticks(fontsize=11)
+                            plt.legend(fontsize=11, frameon=True, shadow=True)
+                            plt.grid(True, linestyle='--', alpha=0.3)
+                            info_text = (f"Driver: {md.get('driver', 'N/A')}\n"
+                                         f"Car: {md.get('car', 'N/A')}\n"
+                                         f"Venue: {md.get('venue', 'N/A')}")
+                            plt.figtext(0.02, 0.02, info_text, fontsize=9, color='white',
+                                        alpha=0.8, va='bottom', ha='left',
+                                        bbox=dict(facecolor='#1a1a1a', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.5'))
+                            plt.tight_layout()
                             
-                            x_curve = np.linspace(min(temps), max(temps), 100)
-                            y_curve = p(x_curve)
-                            
-                            a, b, c = coeffs
-                            eq_str = f"y = {a:.4f}x² + {b:.4f}x + {c:.4f}"
-                            fig.add_trace(go.Scatter(x=x_curve, y=y_curve, mode='lines',
-                                                     line=dict(color='deeppink', width=3),
-                                                     name=f'Trend Fit<br>{eq_str}'))
-                        except Exception as e:
-                            print(f"  [!] Could not fit curve: {e}")
-
-                        fig.update_layout(
-                            title=f"Sector Tire Temp vs Performance<br>Sector: {start_m}m to {end_m}m | {os.path.basename(file_path)}",
-                            xaxis_title="Average Tire Temperature (°C)",
-                            yaxis_title="Sector Time (s)",
-                            template="plotly_dark",
-                            font=dict(family="Consolas", size=13)
-                        )
-                        fig.show()
-
-                    else:
-                        plt.style.use('dark_background')
+                            if GUI_MODE == 3:
+                                show_ctk_graph(fig, "OpenDAV - Sector Tire Analysis")
+                            else:
+                                plt.show()
+                                
+                    elif ans == 'print l3':
+                        import datetime
+                        print("  [+] Exporting L3 Layout...")
+                        timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+                        export_dir = f"exports/L3_{timestamp}"
+                        os.makedirs(export_dir, exist_ok=True)
+                        
+                        safe_scope = scope_text.replace(' ', '_').replace('.', '_')
+                        export_path = os.path.join(export_dir, f"L3_{safe_scope}_{file_basename}.png")
+                        
+                        import matplotx
+                        plt.style.use(matplotx.styles.aura['dark'])
                         plt.rcParams['font.family'] = 'Consolas'
-                        fig = plt.figure(figsize=(12, 7), num='GTEC - Sector Tire Analysis')
-    
-                        # Scatter Plot
+                        fig = plt.figure(figsize=(12, 7))
                         plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data')
-    
-                        # Empirical Optimal Temp (Average temp of the fastest laps)
-                        # This finds where the car is empirically fastest, regardless of curve fit skew
-                        sorted_indices = np.argsort(times)
-                        top_n = min(3, len(times))  # Top 3 fastest laps
-                        fastest_laps_idx = sorted_indices[:top_n]
-                        
-                        emp_opt_temp = np.mean(temps[fastest_laps_idx])
-                        emp_opt_time = np.mean(times[fastest_laps_idx])
-                        
-                        plt.scatter([emp_opt_temp], [emp_opt_time], color='yellow', marker='*', s=200, zorder=5, label=f'Optimal (Top {top_n} Avg): {emp_opt_temp:.1f}°C')
-                        plt.axvline(x=emp_opt_temp, color='yellow', linestyle=':', alpha=0.5)
-    
-                        # Polynomial Curve Fitting (Quadratic/Parabola)
-                        # We still draw the curve to show the general U-shape trend
-                        try:
-                            coeffs = np.polyfit(temps, times, 2)
-                            p = np.poly1d(coeffs)
-                            
-                            x_curve = np.linspace(min(temps), max(temps), 100)
-                            y_curve = p(x_curve)
-                            
-                            a, b, c = coeffs
-                            eq_str = f"y = {a:.4f}x² + {b:.4f}x + {c:.4f}"
-                            plt.plot(x_curve, y_curve, color='deeppink', linewidth=2, label=f'Trend Fit\n{eq_str}')
-                        except Exception as e:
-                            print(f"  [!] Could not fit curve: {e}")
-    
-                        # Styling
-                        plt.title(f"Sector Tire Temp vs Performance\nSector: {start_m}m to {end_m}m | {os.path.basename(file_path)}", fontsize=16, fontweight='bold', pad=20)
-                        plt.xlabel("Average Tire Temperature (°C)", fontsize=13)
-                        plt.ylabel("Sector Time (s)", fontsize=13)
+                        plt.plot(t_curve, time_curve, color='deeppink', linestyle='--', linewidth=2, label='Performance Trend')
+                        plt.axvline(x=optimal_temp, color='gold', linestyle='-', linewidth=2, label=f'Calculated Optimal ({optimal_temp:.1f}°C)')
+                        plt.title(f"Tire Temperature vs Lap Time\n{title_scope}\n{file_basename}", fontsize=16, fontweight='bold', pad=20)
+                        plt.xlabel(f"Average {scope_text.capitalize()} Tire Temp (°C)", fontsize=13)
+                        plt.ylabel("Lap Time (s)", fontsize=13)
                         plt.xticks(fontsize=11)
                         plt.yticks(fontsize=11)
                         plt.legend(fontsize=11, frameon=True, shadow=True)
                         plt.grid(True, linestyle='--', alpha=0.3)
-    
-                        md = session.get('metadata', {})
                         info_text = (f"Driver: {md.get('driver', 'N/A')}\n"
                                      f"Car: {md.get('car', 'N/A')}\n"
-                                     f"Venue: {md.get('venue', 'N/A')}\n"
-                                     f"Fastest Lap: {md.get('fastest_lap', 'N/A')}\n"
-                                     f"Laps: {md.get('laps_count', 0)}")
+                                     f"Venue: {md.get('venue', 'N/A')}")
                         plt.figtext(0.02, 0.02, info_text, fontsize=9, color='white',
                                     alpha=0.8, va='bottom', ha='left',
                                     bbox=dict(facecolor='#1a1a1a', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.5'))
-    
                         plt.tight_layout()
-                        
-                        if gui_mode == 3:
-                            show_ctk_graph(fig, "GTEC - Sector Tire Analysis")
-                        else:
-                            plt.show()
+                        plt.savefig(export_path, dpi=300, bbox_inches='tight')
+                        plt.close(fig)
+                        print(f"  [+] Saved to {export_path}")
+                else:
+                    print("  [!] Invalid command. Try 'open L3', 'print L3', or 'p'.")
 
-        except ValueError:
-            print("[!] Please enter valid numbers.")
-            input("\nPress Enter to try again...")
-        except KeyboardInterrupt:
+        print("\n" + "─"*100)
+        inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
+        if inp == 'q':
+            splash.show_exit_screen()
             sys.exit(0)
+        break

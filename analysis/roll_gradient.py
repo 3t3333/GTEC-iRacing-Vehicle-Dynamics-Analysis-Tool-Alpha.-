@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import ui.splash as splash
+from ui.metadata_printer import print_session_metadata
 
 def run_roll_analysis(sessions):
     while True:
@@ -10,7 +11,9 @@ def run_roll_analysis(sessions):
         for session in sessions:
             file_path = session['file_path']
             data = session['data']
+            channels = session['channels']
             print(f"\nAnalyzing: {os.path.basename(file_path)}")
+            print_session_metadata(data, channels, session.get('metadata', {}))
             
             # Find lateral G channel
             lat_g_ch = None
@@ -55,7 +58,6 @@ def run_roll_analysis(sessions):
             cornering_rear_roll = rear_roll_mm[mask]
 
             # Calculate Fastest Lap
-            channels = session['channels']
             lap_arr = data[channels['lap']].data
             time_arr = data[channels['time']].data
             laps = np.unique(lap_arr)
@@ -72,7 +74,7 @@ def run_roll_analysis(sessions):
                 if valid_times:
                     fastest_time = min(valid_times)
                     PINK = '\033[95m'
-                    RESET = '\033[0m'
+                    RESET = "\033[0m"
                     fastest_str = f"\n  {PINK}Fastest Lap: {fastest_time:.3f} s{RESET}"
 
             # Linear regression (y = mx + c) to find gradient
@@ -101,7 +103,7 @@ def run_roll_analysis(sessions):
             except Exception as e:
                 print(f"  [!] Error calculating gradient: {e}")
 
-        print("\n" + "═"*64)
+        print("\n" + "─"*100)
         inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
         if inp == 'q':
             splash.show_exit_screen()

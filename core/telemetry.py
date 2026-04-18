@@ -12,14 +12,18 @@ try:
     from ldparser import ldData, ldHead
 except ImportError as e:
     print(f"\n[!] ERROR: Failed to import ldparser modules: {e}")
-    print(f"    Check that you built the EXE using: pyinstaller --onefile --paths \"ldparser\" gtec.py")
+    print(f"    Check that you built the EXE using: pyinstaller --onefile --paths \"ldparser\" opendav.py")
     input("\nPress Enter to exit...")
     sys.exit(1)
 
 def load_telemetry(file_path):
     print(f"[*] Loading {file_path}...")
     try:
-        data = ldData.fromfile(file_path)
+        if file_path.lower().endswith('.ibt'):
+            from core import ibt_adapter
+            data = ibt_adapter.fromfile(file_path)
+        else:
+            data = ldData.fromfile(file_path)
         
         # Identify standard channels
         lap_ch = 'Lap' if 'Lap' in data else 'Lap Number'
@@ -34,14 +38,25 @@ def load_telemetry(file_path):
         
         # Extract metadata
         metadata = {'driver': 'Unknown', 'car': 'Unknown', 'venue': 'Unknown', 'fastest_lap': 'N/A', 'laps_count': 0}
-        try:
-            with open(file_path, 'rb') as f_obj:
-                h = ldHead.fromfile(f_obj)
-                metadata['driver'] = str(getattr(h, 'driver', '')).strip() or 'Unknown'
-                metadata['car'] = str(getattr(h, 'vehicleid', '')).strip() or 'Unknown'
-                metadata['venue'] = str(getattr(h, 'venue', '')).strip() or 'Unknown'
-        except Exception:
-            pass
+        
+        if file_path.lower().endswith('.ibt'):
+            metadata['driver'] = getattr(data.head, 'driver', 'iRacing User')
+            metadata['car'] = getattr(data.head, 'vehicleid', 'iRacing Car')
+            metadata['venue'] = getattr(data.head, 'venue', 'iRacing Track')
+            
+            yaml_raw = getattr(data.head, 'session_info_yaml', '')
+            if isinstance(yaml_raw, bytes):
+                yaml_raw = yaml_raw.decode('utf-8', errors='ignore')
+            metadata['session_info_yaml'] = yaml_raw
+        else:
+            try:
+                with open(file_path, 'rb') as f_obj:
+                    h = ldHead.fromfile(f_obj)
+                    metadata['driver'] = str(getattr(h, 'driver', '')).strip() or 'Unknown'
+                    metadata['car'] = str(getattr(h, 'vehicleid', '')).strip() or 'Unknown'
+                    metadata['venue'] = str(getattr(h, 'venue', '')).strip() or 'Unknown'
+            except Exception:
+                pass
 
         # Calculate fastest lap and laps count
         if lap_ch in data and time_ch in data:
@@ -69,6 +84,7 @@ def load_telemetry(file_path):
         }, metadata
     except Exception as e:
         print(f"[!] Error loading file: {e}")
+        # print(traceback.format_exc()) # Debug
         sys.exit(1)
 
 def get_static_val(data, possible_names, multiplier=1.0, fmt="{:.1f}", unit=""):

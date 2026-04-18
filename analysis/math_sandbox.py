@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import ui.splash as splash
+from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph
 from core.config import get_gui_mode
 
@@ -66,6 +67,7 @@ def run_custom_math_graph(sessions):
                 file_path = session['file_path']
                 
                 print(f"\nAnalyzing: {os.path.basename(file_path)}")
+                print_session_metadata(data, channels, session.get('metadata', {}))
                 
                 missing = [ch for ch in channels_in_formula if ch not in data]
                 if missing:
@@ -164,9 +166,10 @@ def run_custom_math_graph(sessions):
                         fig.show()
 
                     else:
-                        plt.style.use('dark_background')
+                        import matplotx
+                        plt.style.use(matplotx.styles.aura['dark'])
                         plt.rcParams['font.family'] = 'Consolas'
-                        fig = plt.figure(figsize=(12, 7), num='GTEC - Custom Sandbox Graph')
+                        fig = plt.figure(figsize=(12, 7), num='OpenDAV - Custom Sandbox Graph')
     
                         plt.plot(x_data, y_data, color='cyan', linewidth=2, label='Custom Math')
                         
@@ -191,7 +194,7 @@ def run_custom_math_graph(sessions):
                         plt.tight_layout()
                         
                         if gui_mode == 3:
-                            show_ctk_graph(fig, "GTEC - Custom Sandbox Graph")
+                            show_ctk_graph(fig, "OpenDAV - Custom Sandbox Graph")
                         else:
                             plt.show()
 
