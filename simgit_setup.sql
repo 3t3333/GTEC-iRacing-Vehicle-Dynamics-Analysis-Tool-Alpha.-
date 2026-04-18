@@ -19,22 +19,39 @@ ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT ON public.team_members TO authenticated;
 
--- 3. Security Policies for team_members (Safely recreate)
+-- 3. Security Policies for team_members (Non-Recursive)
 DROP POLICY IF EXISTS "Admins can do everything" ON public.team_members;
 DROP POLICY IF EXISTS "Approved users can read team" ON public.team_members;
 DROP POLICY IF EXISTS "Users can read own row" ON public.team_members;
+DROP POLICY IF EXISTS "Anyone logged in can read the team list" ON public.team_members;
+DROP POLICY IF EXISTS "Admins can update team" ON public.team_members;
+DROP POLICY IF EXISTS "Admins can delete team" ON public.team_members;
 
-CREATE POLICY "Admins can do everything" ON public.team_members
-    FOR ALL TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.id = auth.uid() AND tm.role = 'admin'));
+-- 3.5 Create Helper Function to avoid RLS recursion
+CREATE OR REPLACE FUNCTION public.is_admin() 
+RETURNS BOOLEAN AS $$
+DECLARE
+    user_role TEXT;
+BEGIN
+    SELECT role INTO user_role FROM public.team_members WHERE id = auth.uid() LIMIT 1;
+    RETURN user_role = 'admin';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE POLICY "Approved users can read team" ON public.team_members
+-- Users can always see who is on the team (so they know who the admin is)
+CREATE POLICY "Anyone logged in can read the team list" ON public.team_members
     FOR SELECT TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.team_members tm WHERE tm.id = auth.uid() AND tm.role IN ('admin', 'approved')));
+    USING (true);
 
-CREATE POLICY "Users can read own row" ON public.team_members
-    FOR SELECT TO authenticated
-    USING (id = auth.uid());
+-- Only admins can approve or remove people
+CREATE POLICY "Admins can update team" ON public.team_members
+    FOR UPDATE TO authenticated
+    USING (public.is_admin())
+    WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete team" ON public.team_members
+    FOR DELETE TO authenticated
+    USING (public.is_admin());
 
 -- 4. Auto-Admin Trigger Function
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
