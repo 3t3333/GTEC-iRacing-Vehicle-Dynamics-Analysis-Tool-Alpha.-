@@ -10,8 +10,8 @@ class OpenDAVCloud:
     def __init__(self):
         self.base_url = "" # Set from settings
         self.anon_key = "" # Set from settings
-        self.token = self.load_token()
         self.user_id = ""
+        self.token = self.load_token()
         self.load_cloud_settings()
 
     def load_cloud_settings(self):
@@ -24,6 +24,7 @@ class OpenDAVCloud:
         if os.path.exists(AUTH_FILE):
             with open(AUTH_FILE, 'r') as f:
                 data = json.load(f)
+                self.user_id = data.get("user", {}).get("id", "")
                 return data.get("access_token", "")
         return ""
 
@@ -190,7 +191,8 @@ class OpenDAVCloud:
                 with open(local_file, 'rb') as f_data:
                     # Using POST to upload new. Supabase returns 400 if it exists. 
                     # We should probably use PUT /storage/v1/object/opendav_assets/path to overwrite.
-                    put_url = f"{bucket_url}/{remote_path}"
+                    import urllib.parse
+                    put_url = f"{bucket_url}/{urllib.parse.quote(remote_path)}"
                     res = requests.put(put_url, headers=upload_headers, data=f_data)
                     
                     if res.status_code in [200, 201]:
@@ -198,7 +200,7 @@ class OpenDAVCloud:
                         success_count += 1
                     else:
                         # Fallback to POST if PUT fails (sometimes bucket policies require POST for new files)
-                        post_url = f"{bucket_url}/{remote_path}"
+                        post_url = f"{bucket_url}/{urllib.parse.quote(remote_path)}"
                         res_post = requests.post(post_url, headers=upload_headers, data=f_data)
                         if res_post.status_code in [200, 201]:
                             print(" OK")

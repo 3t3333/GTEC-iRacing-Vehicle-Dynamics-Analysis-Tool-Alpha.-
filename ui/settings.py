@@ -114,7 +114,7 @@ def show_settings():
                         continue
                 else:
                     # If the table doesn't exist or they aren't in it, the SQL script hasn't been run.
-                    print("[!] Database Error: Are you sure you ran the 'simgit_setup.sql' script in Supabase?")
+                    print(f"[!] Database Error (Admin ID: {cloud.user_id}): Either the table is empty or the SQL script failed.")
                     input("\nPress Enter to return...")
                     continue
             except Exception as e:
