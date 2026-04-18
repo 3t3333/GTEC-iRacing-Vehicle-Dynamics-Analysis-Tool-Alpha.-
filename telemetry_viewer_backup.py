@@ -117,7 +117,7 @@ def run_telemetry_viewer(sessions):
                     plt.style.use('dark_background')
                     plt.rcParams['font.family'] = 'Consolas'
                     
-                    fig, axs = plt.subplots(6, 1, figsize=(14, 10), sharex=True, num='GTEC - Telemetry Viewer')
+                    fig, axs = plt.subplots(6, 1, figsize=(14, 10), sharex=True, num='OpenDAV - Telemetry Viewer')
                     fig.suptitle(f"Telemetry Trace - Lap {int(fastest_lap)}\n{os.path.basename(file_path)}", fontsize=16, fontweight='bold')
                     
                     # 1. Lateral G
@@ -160,7 +160,7 @@ def run_telemetry_viewer(sessions):
                     plt.subplots_adjust(top=0.92, hspace=0.15)
     
                     if GUI_MODE == 3:
-                        show_ctk_graph(fig, "GTEC - Telemetry Viewer")
+                        show_ctk_graph(fig, "OpenDAV - Telemetry Viewer")
                     else:
                         plt.show()
 
