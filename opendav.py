@@ -401,6 +401,8 @@ def main():
             print("  7. Empirical Aero Map Generator (GUI Support)")
             print("  8. Downforce Mapping Module (GUI Support)")
             print("  9. Pitch Kinematics & Platform Analyzer")
+            print("  10. Yaw Kinematics & Handling Analyzer")
+            print("  11. Total Lateral Load Transfer (TLLTD)")
             print("─" * 100)
 
             tool_choice = input("\nSelect a tool (number), 'p' for Main Menu, or 'q' to quit: ").strip().lower()
@@ -431,6 +433,12 @@ def main():
             elif tool_choice == '9':
                 from analysis.pitch_kinematics import run_pitch_analyzer
                 run_pitch_analyzer(sessions)
+            elif tool_choice == '10':
+                from analysis.yaw_kinematics import run_yaw_analyzer
+                run_yaw_analyzer(sessions)
+            elif tool_choice == '11':
+                from analysis.load_transfer import run_tlltd_analyzer
+                run_tlltd_analyzer(sessions)
             else:
                 print("[!] Invalid selection.")                
                 print("\nPress Enter to try again...")

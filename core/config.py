@@ -22,6 +22,7 @@ def save_config(conf):
 _config_cache = load_config()
 GUI_MODE = _config_cache.get('gui_mode', 1) # 1=Legacy, 2=Plotly, 3=CustomTkinter
 DATA_MODE = _config_cache.get('data_mode', 1) # 1=Auto, 2=Strict MoTeC (.ld), 3=Strict iRacing (.ibt)
+AUTO_IMPORT = _config_cache.get('auto_import', False)
 
 def get_gui_mode():
     global GUI_MODE
@@ -38,3 +39,12 @@ def get_data_mode():
 def set_data_mode(mode):
     global DATA_MODE
     DATA_MODE = mode
+
+
+def get_auto_import():
+    global AUTO_IMPORT
+    return AUTO_IMPORT
+
+def set_auto_import(state):
+    global AUTO_IMPORT
+    AUTO_IMPORT = state

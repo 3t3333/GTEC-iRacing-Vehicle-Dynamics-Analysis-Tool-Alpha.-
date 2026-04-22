@@ -17,10 +17,13 @@ def run_project_manager():
         os.makedirs(STAGING_DIR)
         
     while True:
-        splash.print_header("Automation & Team Projects (VCS)")
+        splash.print_header("Automation & Team Projects (SimGit)")
+        print("  [ LOCAL WORKSPACE ]")
         print("  1. Create New Project")
         print("  2. Open Existing Project")
         print("  3. Manage Workbooks")
+        print("\n  [ CLOUD SYNC ]")
+        print("  4. Browse & Pull Projects from Cloud")
         print("  p. Return to Main Menu")
         print("─" * 100)
         
@@ -32,8 +35,11 @@ def run_project_manager():
         elif choice == '3':
             from analysis.workflow_engine import manage_workbooks
             manage_workbooks()
+        elif choice == '4':
+            browse_and_pull()
         else:
             print("[!] Invalid selection.")
+            time.sleep(1)
 
 def create_project():
     name = input("\nEnter Project Name (e.g. Daytona_Setup_Week): ").strip().replace(" ", "_")
@@ -42,6 +48,7 @@ def create_project():
     path = os.path.join(PROJECTS_DIR, name)
     if os.path.exists(path):
         print(f"[!] Project '{name}' already exists.")
+        input("\nPress Enter to continue...")
         return
         
     # Build Git-like directory structure
@@ -73,7 +80,7 @@ def create_project():
 def list_projects():
     projects = [d for d in os.listdir(PROJECTS_DIR) if os.path.isdir(os.path.join(PROJECTS_DIR, d))]
     if not projects:
-        print("[!] No projects found.")
+        print("[!] No local projects found.")
         input("\nPress Enter to continue...")
         return
         
@@ -99,8 +106,13 @@ def list_projects():
 def manage_project(name):
     path = os.path.join(PROJECTS_DIR, name)
     while True:
-        with open(os.path.join(path, "project_state.json"), "r") as f:
-            state = json.load(f)
+        try:
+            with open(os.path.join(path, "project_state.json"), "r") as f:
+                state = json.load(f)
+        except Exception as e:
+            print(f"[!] Error loading project state: {e}")
+            input("\nPress Enter to return...")
+            return
             
         splash.print_header(f"Project Workspace: {name}")
         print(f"  Tracked Telemetry: {len(state['linked_files'])} | Baseline: {os.path.basename(state['baseline']) if state['baseline'] else 'None'}")
@@ -120,7 +132,6 @@ def manage_project(name):
         print("  6. Set Baseline Telemetry File")
         print("\n  [ TEAM SYNC (CLOUD) ]")
         print("  7. Push to OpenDAV Cloud (Supabase)")
-        print("  8. Pull from OpenDAV Cloud (Supabase)")
         print("  p. Back to Project Manager")
         print("─" * 100)
         
@@ -141,15 +152,12 @@ def manage_project(name):
             cloud = OpenDAVCloud()
             cloud.push_project(name, path)
             input("\nPress Enter to continue...")
-        elif choice == '8':
-            from core.cloud import OpenDAVCloud
-            cloud = OpenDAVCloud()
-            cloud.pull_project(name)
-            input("\nPress Enter to continue...")
+        else:
+            print("[!] Invalid selection.")
+            time.sleep(1)
 
 def commit_files(name, path, state):
     while True:
-
         if not os.path.exists(STAGING_DIR):
             os.makedirs(STAGING_DIR)
 
@@ -157,7 +165,7 @@ def commit_files(name, path, state):
         if not staged_files:
             print(f"\n[!] No files found in the global '{STAGING_DIR}' staging folder.")
             print("    Drop your .ibt, .sto, or .blap files there first to commit them.")
-            input("Press Enter to continue...")
+            input("\nPress Enter to continue...")
             break
 
         splash.print_header(f"Commit Files to '{name}'")
@@ -269,7 +277,6 @@ def commit_files(name, path, state):
         with open(os.path.join(path, "project_state.json"), "w") as f:
             json.dump(state, f, indent=4)
 
-
         ans = input("\nPress Enter to commit more files, or 'c' to return to dashboard: ").strip().lower()
         if ans == 'c':
             break
@@ -307,8 +314,6 @@ def install_to_iracing(name, path):
         
     asset_type, asset_path, asset_name = assets[idx]
     
-    # Try to find iRacing Documents folder. 
-    # Works natively on Windows, or via WSL standard mounting (/mnt/c/Users/<user>/Documents/iRacing)
     print("\n[*] Searching for local iRacing installation...")
     iracing_path = ""
     
@@ -316,7 +321,6 @@ def install_to_iracing(name, path):
         base = os.path.expanduser("~")
         iracing_path = os.path.join(base, "Documents", "iRacing")
     else:
-        # Fallback for Linux/Mac users running OpenDAV locally but pushing to a network drive or proton layer
         iracing_path = "" 
             
     if not os.path.exists(iracing_path):
@@ -332,14 +336,21 @@ def install_to_iracing(name, path):
         car_folders = [d for d in os.listdir(os.path.join(iracing_path, "setups")) if os.path.isdir(os.path.join(iracing_path, "setups", d))]
         
         # Try to guess car folder from filename (basic heuristic)
+        from core.config import get_auto_import
+        auto_install = get_auto_import()
+        
         guessed_car = ""
         for c in car_folders:
             if c.lower().replace(" ", "") in asset_name.lower().replace(" ", ""):
                 guessed_car = c
                 break
                 
-        car_folder = input(f"    Enter Target Car Folder (Detected: {guessed_car}): ").strip()
-        if not car_folder: car_folder = guessed_car
+        if auto_install and guessed_car:
+            print(f"\n    [Auto-Install] Detected Car Folder: {guessed_car}")
+            car_folder = guessed_car
+        else:
+            car_folder = input(f"    Enter Target Car Folder (Detected: {guessed_car}): ").strip()
+            if not car_folder: car_folder = guessed_car
         
         dest_dir = os.path.join(iracing_path, "setups", car_folder)
         
@@ -353,8 +364,15 @@ def install_to_iracing(name, path):
                 guessed_track = t
                 break
                 
-        track_folder = input(f"    Enter Target Track Folder (Detected: {guessed_track}): ").strip()
-        if not track_folder: track_folder = guessed_track
+        from core.config import get_auto_import
+        auto_install = get_auto_import()
+        
+        if auto_install and guessed_track:
+            print(f"\n    [Auto-Install] Detected Track Folder: {guessed_track}")
+            track_folder = guessed_track
+        else:
+            track_folder = input(f"    Enter Target Track Folder (Detected: {guessed_track}): ").strip()
+            if not track_folder: track_folder = guessed_track
         
         dest_dir = os.path.join(iracing_path, "lapfiles", track_folder)
         
@@ -380,8 +398,11 @@ def install_to_iracing(name, path):
 def show_history(name):
     path = os.path.join(PROJECTS_DIR, name, "setup_history.md")
     splash.print_header(f"Setup History Log: {name}")
-    with open(path, "r") as f:
-        print(f.read())
+    try:
+        with open(path, "r") as f:
+            print(f.read())
+    except Exception as e:
+        print(f"[!] Error reading history: {e}")
     input("\nPress Enter to return...")
 
 def set_baseline(name, path, state):
@@ -475,6 +496,8 @@ def run_manual_analysis(project_name, state):
             print("  7. Empirical Aero Map Generator (GUI Support)")
             print("  8. Downforce Mapping Module (GUI Support)")
             print("  9. Pitch Kinematics & Platform Analyzer")
+            print("  10. Yaw Kinematics & Handling Analyzer")
+            print("  11. Total Lateral Load Transfer (TLLTD)")
             print("─" * 100)
             
             tool_choice = input("\nSelect a tool (number), or 'p' to select different file: ").strip().lower()
@@ -507,6 +530,62 @@ def run_manual_analysis(project_name, state):
             elif tool_choice == '9':
                 from analysis.pitch_kinematics import run_pitch_analyzer
                 run_pitch_analyzer(sessions)
+            elif tool_choice == '10':
+                from analysis.yaw_kinematics import run_yaw_analyzer
+                run_yaw_analyzer(sessions)
+            elif tool_choice == '11':
+                from analysis.load_transfer import run_tlltd_analyzer
+                run_tlltd_analyzer(sessions)
             else:
                 print("[!] Invalid selection.")
                 time.sleep(1)
+
+def browse_and_pull():
+    from core.cloud import OpenDAVCloud
+    cloud = OpenDAVCloud()
+    if not cloud.is_logged_in():
+        print("\n[!] You must be logged in to pull projects from SimGit.")
+        input("\nPress Enter to return...")
+        return
+        
+    print("\n[*] Connecting to SimGit Database to fetch available projects...")
+    projects = cloud.list_available_projects()
+    
+    if not projects:
+        input("\nPress Enter to return...")
+        return
+        
+    while True:
+        splash.print_header("SimGit Cloud Repository")
+        print("  Available Projects on Server:")
+        for i, p in enumerate(projects):
+            # p is just a folder name or project name from the DB
+            print(f"    {i+1}. {p}")
+        print("─" * 100)
+        
+        choice = input("\nSelect a project to download (number), or 'p' to go back: ").strip().lower()
+        if choice == 'p': break
+        
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(projects):
+                target_project = projects[idx]
+                
+                # Check if it already exists locally
+                local_path = os.path.join(PROJECTS_DIR, target_project)
+                if os.path.exists(local_path):
+                    print(f"\n[!] Project '{target_project}' already exists locally.")
+                    ans = input("    Do you want to overwrite/sync it anyway? (y/n): ").strip().lower()
+                    if ans != 'y': continue
+                    
+                cloud.pull_project(target_project)
+                input("\nPress Enter to return...")
+                break
+            else:
+                print("  [!] Invalid selection.")
+                import time
+                time.sleep(1)
+        except ValueError:
+            print("  [!] Invalid selection.")
+            import time
+            time.sleep(1)

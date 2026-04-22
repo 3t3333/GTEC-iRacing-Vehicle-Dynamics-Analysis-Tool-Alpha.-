@@ -2,7 +2,8 @@ import sys
 import os
 import time
 
-from core.config import get_gui_mode, set_gui_mode, get_data_mode, set_data_mode, save_config, load_config
+from core.config import (get_gui_mode, set_gui_mode, get_data_mode, set_data_mode, 
+                        save_config, load_config, get_auto_import, set_auto_import)
 import ui.splash as splash
 
 def show_settings():
@@ -16,11 +17,14 @@ def show_settings():
         gui_str = "Legacy (Matplotlib)" if gui_mode == 1 else "Plotly (Web Interactive)" if gui_mode == 2 else "CustomTkinter (Desktop)"
         data_str = "Auto-Detect" if data_mode == 1 else "Strict MoTeC (.ld)" if data_mode == 2 else "Strict iRacing (.ibt)"
         
+        auto_str = "Enabled (Fast)" if get_auto_import() else "Disabled (Safe)"
+        
         print(f"  1. GUI Mode: \033[1;36m{gui_str}\033[0m")
         print(f"  2. Data Source Mode: \033[1;36m{data_str}\033[0m")
-        print(f"  3. OpenDAV Cloud: Login / Sync")
-        print(f"  4. Supabase API Settings")
-        print(f"  5. [Admin] Manage SimGit Team Access")
+        print(f"  3. Fast iRacing Install (No Prompts): \033[1;36m{auto_str}\033[0m")
+        print(f"  4. OpenDAV Cloud: Login / Sync")
+        print(f"  5. Supabase API Settings")
+        print(f"  6. [Admin] Manage SimGit Team Access")
         print("─" * 100)
         
         choice = input("\nSelect a setting to change, or 'b' to go back: ").strip().lower()
@@ -53,8 +57,21 @@ def show_settings():
                 save_config(config)
                 print("  [+] Data Source Mode saved.")
                 time.sleep(0.5)
-                
+
         elif choice == '3':
+            print("\n  [1] Enable (Auto-install if car/track detected)")
+            print("  [2] Disable (Always ask for confirmation)")
+            new_mode = input("  Select Mode: ").strip()
+            if new_mode in ['1', '2']:
+                state = True if new_mode == '1' else False
+                set_auto_import(state)
+                config = load_config()
+                config['auto_import'] = state
+                save_config(config)
+                print(f"  [+] Fast Install {'Enabled' if state else 'Disabled'}.")
+                time.sleep(0.5)
+
+        elif choice == '4':
             from core.cloud import OpenDAVCloud
             cloud = OpenDAVCloud()
             if cloud.is_logged_in():
@@ -79,7 +96,7 @@ def show_settings():
                     cloud.signup(email, password)
             input("\nPress Enter to continue...")
 
-        elif choice == '4':
+        elif choice == '5':
             config = load_config()
             print(f"\n  Current Supabase URL: {config.get('supabase_url', 'Not Set')}")
             url = input("  New Supabase URL (Enter to skip): ").strip()
@@ -92,12 +109,13 @@ def show_settings():
             save_config(config)
             print("  [+] API Settings saved.")
             time.sleep(1)
-        elif choice == '5':
+
+        elif choice == '6':
             from core.cloud import OpenDAVCloud
             cloud = OpenDAVCloud()
             if not cloud.is_logged_in():
                 print("\n[!] You must be logged in to manage team access.")
-                time.sleep(1)
+                input("\nPress Enter to continue...")
                 continue
                 
             print("\n[*] Connecting to SimGit Database...")
@@ -113,13 +131,12 @@ def show_settings():
                         input("\nPress Enter to return...")
                         continue
                 else:
-                    # If the table doesn't exist or they aren't in it, the SQL script hasn't been run.
                     print(f"[!] Database Error (Admin ID: {cloud.user_id}): Either the table is empty or the SQL script failed.")
                     input("\nPress Enter to return...")
                     continue
             except Exception as e:
                 print(f"[!] Network error verifying admin status: {e}")
-                time.sleep(1)
+                input("\nPress Enter to return...")
                 continue
                 
             # 2. Fetch all team members
@@ -128,11 +145,12 @@ def show_settings():
                 res = requests.get(f"{cloud.base_url}/rest/v1/team_members", headers=headers)
                 if res.status_code != 200:
                     print(f"[!] Failed to fetch team members: {res.text}")
+                    input("\nPress Enter to return...")
                     break
                     
                 members = res.json()
                 pending = [m for m in members if m['role'] == 'pending']
-                approved = [m for m in members if m['role'] in ['approved', 'admin']]
+                approved = [m for m in members if m['role'] in ['approved', 'admin', 'customer']]
                 
                 print("  [ PENDING APPROVALS ]")
                 if not pending: print("    None.")
@@ -163,10 +181,11 @@ def show_settings():
                         time.sleep(1)
                         continue
                         
-                    print(f"\n  Managing User: {target['email']}")
-                    print("  1. Approve Access (Allow Push/Pull)")
-                    print("  2. Revoke Access / Set to Pending")
-                    print("  3. Delete User entirely")
+                    print(f"\n  Managing User: {target['email']} (Current: {target['role']})")
+                    print("  1. Promote to Team Engineer (Push & Pull Access)")
+                    print("  2. Promote to Customer / Driver (Pull-Only Access)")
+                    print("  3. Revoke Access (Set to Pending)")
+                    print("  4. Delete User entirely")
                     print("  c. Cancel")
                     
                     cmd = input("\n  Action: ").strip().lower()
@@ -174,23 +193,26 @@ def show_settings():
                     
                     if cmd == '1':
                         patch_res = requests.patch(
-                            f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", 
-                            headers=headers, 
-                            json={"role": "approved"}
+                            f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", headers=headers, json={"role": "approved"}
                         )
-                        if patch_res.status_code in [200, 204]: print("  [+] User approved!")
+                        if patch_res.status_code in [200, 204]: print("  [+] User granted Engineer (Push/Pull) access!")
                         else: print(f"  [!] Error: {patch_res.text}")
                         
                     elif cmd == '2':
                         patch_res = requests.patch(
-                            f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", 
-                            headers=headers, 
-                            json={"role": "pending"}
+                            f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", headers=headers, json={"role": "customer"}
+                        )
+                        if patch_res.status_code in [200, 204]: print(f"  [+] User granted Customer (Pull-Only) access!")
+                        else: print(f"  [!] Error: {patch_res.text}")
+                        
+                    elif cmd == '3':
+                        patch_res = requests.patch(
+                            f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", headers=headers, json={"role": "pending"}
                         )
                         if patch_res.status_code in [200, 204]: print("  [+] Access revoked.")
                         else: print(f"  [!] Error: {patch_res.text}")
                         
-                    elif cmd == '3':
+                    elif cmd == '4':
                         del_res = requests.delete(
                             f"{cloud.base_url}/rest/v1/team_members?id=eq.{target['id']}", 
                             headers=headers
@@ -202,3 +224,6 @@ def show_settings():
                 except ValueError:
                     print("  [!] Invalid selection.")
                     time.sleep(1)
+        else:
+            print("[!] Invalid selection.")
+            time.sleep(1)

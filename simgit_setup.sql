@@ -112,7 +112,17 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 7. Helper Function for Cross-Schema Storage RLS
 -- (Allows the Storage engine to securely check team roles in the public schema)
-CREATE OR REPLACE FUNCTION public.is_simgit_approved() 
+CREATE OR REPLACE FUNCTION public.is_simgit_approved_reader() 
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.team_members tm 
+        WHERE tm.id = auth.uid() AND tm.role IN ('admin', 'approved', 'customer')
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.is_simgit_approved_writer() 
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
@@ -122,13 +132,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-GRANT EXECUTE ON FUNCTION public.is_simgit_approved() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_simgit_approved_reader() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_simgit_approved_writer() TO authenticated;
 
--- 8. Lock Down the Storage Bucket (Zero-Trust Security)
+-- 8. Lock Down the Storage Bucket (Zero-Trust Split Security)
 DROP POLICY IF EXISTS "SimGit Enterprise Access" ON storage.objects;
-CREATE POLICY "SimGit Enterprise Access" ON storage.objects
+DROP POLICY IF EXISTS "SimGit Customer Read Access" ON storage.objects;
+DROP POLICY IF EXISTS "SimGit Team Write Access" ON storage.objects;
+
+-- Customers (Read Only)
+CREATE POLICY "SimGit Customer Read Access" ON storage.objects
+    FOR SELECT TO authenticated
+    USING (bucket_id = 'opendav_assets' AND public.is_simgit_approved_reader());
+
+-- Admins and Engineers (Read/Write/Delete)
+CREATE POLICY "SimGit Team Write Access" ON storage.objects
     FOR ALL TO authenticated
-    USING (bucket_id = 'opendav_assets' AND public.is_simgit_approved())
-    WITH CHECK (bucket_id = 'opendav_assets' AND public.is_simgit_approved());
+    USING (bucket_id = 'opendav_assets' AND public.is_simgit_approved_writer())
+    WITH CHECK (bucket_id = 'opendav_assets' AND public.is_simgit_approved_writer());
 
 -- Done! SimGit is now ready for production.

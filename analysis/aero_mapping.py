@@ -241,6 +241,12 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     ax2d.set_title("2D Platform Topography", fontsize=14, pad=20)
                     ax2d.set_xlabel("Front Ride Height (mm)")
                     ax2d.set_ylabel("Rear Ride Height (mm)")
+                    lookup_tree_sim = cKDTree(np.column_stack((f_sim, r_sim)))
+                    def format_coord_sim(x, y):
+                        dist, idx = lookup_tree_sim.query([x, y])
+                        if dist > 5.0: return f'x={x:.1f}, y={y:.1f}'
+                        return f'x={x:.1f}, y={y:.1f}, AB={z_sim[idx]:.1f}%'
+                    ax2d.format_coord = format_coord_sim
                     plt.colorbar(cf, ax=ax2d, label='Aero Balance (% Front)')
                     plt.tight_layout()
 
@@ -277,13 +283,22 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             distances, _ = tree.query(centers)
                             threshold = max(max(f_s) - min(f_s), max(r_s) - min(r_s)) * 0.04
                             triang.set_mask(distances > threshold)
-                            levels = np.linspace(0, 100, 20)
+                            levels = np.linspace(0, 100, 20) if '%' == '%' else 20
                             contourf = plt.tricontourf(triang, z_s, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
                             lines = plt.tricontour(triang, z_s, levels=10, cmap=opendav_cmap, linewidths=1.5, alpha=0.8)
-                            plt.clabel(lines, inline=True, fontsize=9, fmt='%.1f%%', colors='white')
-                            plt.colorbar(contourf, label='Aero Balance (% Front)')
+                            plt.clabel(lines, inline=True, fontsize=9, fmt='%.1f%', colors='white')
+                            plt.colorbar(contourf, label='AB (%)' if '%' == '%' else 'AB')
                             plt.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2)
                             ax = plt.gca()
+                            
+                            # Enable Z-value coordinate display
+                            lookup_tree = cKDTree(np.column_stack((f_s, r_s)))
+                            def format_coord(x, y):
+                                dist, idx = lookup_tree.query([x, y])
+                                if dist > 5.0: return f'x={x:.1f}, y={y:.1f}'
+                                return f'x={x:.1f}, y={y:.1f}, AB={z_s[idx]:.1f}%'
+                            ax.format_coord = format_coord
+                            
                             ax.xaxis.set_major_locator(ticker.MultipleLocator(20))
                             ax.yaxis.set_major_locator(ticker.MultipleLocator(20))
                             plt.grid(True, which='both', linestyle='--', alpha=0.1, color='white')
@@ -527,20 +542,24 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         threshold = max(max(f_s) - min(f_s), max(r_s) - min(r_s)) * 0.04
                         triang.set_mask(distances > threshold)
                         
-                        levels = np.linspace(0, 100, 20)
+                        levels = np.linspace(0, 100, 20) if '%' == '%' else 20
                         cf = ax.tricontourf(triang, z_s, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
                         lines = ax.tricontour(triang, z_s, levels=10, cmap=opendav_cmap, linewidths=1.5, alpha=0.8)
-                        ax.clabel(lines, inline=True, fontsize=9, fmt='%.1f%%', colors='white')
+                        ax.clabel(lines, inline=True, fontsize=9, fmt='%.1f%', colors='white')
                         ax.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2)
+                        
+                        # Enable Z-value coordinate display
+                        lookup_tree = cKDTree(np.column_stack((f_s, r_s)))
+                        def format_coord(x, y):
+                            dist, idx = lookup_tree.query([x, y])
+                            if dist > 5.0: return f'x={x:.1f}, y={y:.1f}'
+                            return f'x={x:.1f}, y={y:.1f}, AB={z_s[idx]:.1f}%'
+                        ax.format_coord = format_coord
                         
                         ax.xaxis.set_major_locator(ticker.MultipleLocator(20))
                         ax.yaxis.set_major_locator(ticker.MultipleLocator(20))
                         ax.grid(True, which='both', linestyle='--', alpha=0.1, color='white')
                         
-                        full_title = f"{title}\n{subtitle}" if subtitle else title
-                        ax.set_title(full_title, fontsize=12, pad=15)
-                        ax.set_xlabel("Front Ride Height (mm)", fontsize=11)
-                        ax.set_ylabel("Rear Ride Height (mm)", fontsize=11)
                         return cf
                         
                     p_lap_ch = channels.get('lap')

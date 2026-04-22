@@ -1,0 +1,34 @@
+{
+    "porsche992cup": {
+        "wheelbase": 2.459,
+        "steering_ratio": 14.2
+    },
+    "porsche992gt3r": {
+        "wheelbase": 2.507,
+        "steering_ratio": 13.0
+    },
+    "ferrari296gt3": {
+        "wheelbase": 2.62,
+        "steering_ratio": 14.0
+    },
+    "dallarap217": {
+        "wheelbase": 3.005,
+        "steering_ratio": 15.0
+    },
+    "mercedesgt32020": {
+        "wheelbase": 2.625,
+        "steering_ratio": 14.0
+    },
+    "bmwm4gt3": {
+        "wheelbase": 2.857,
+        "steering_ratio": 13.0
+    },
+    "f360": {
+        "wheelbase": 2.7,
+        "steering_ratio": 14.0
+    },
+    "safetypcporsche911cup": {
+        "wheelbase": 1.902,
+        "steering_ratio": 14.2
+    }
+}

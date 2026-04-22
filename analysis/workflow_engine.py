@@ -45,7 +45,9 @@ def create_workbook():
         '3': ('Dynamic Aero/Rake Analyzer', ['L1', 'L2']),
         '7': ('Empirical Aero Map Generator', ['L1', 'L2']),
         '8': ('Downforce Mapping Module', ['L1', 'L2']),
-        '9': ('Pitch Kinematics & Platform Analyzer', ['L1', 'L2'])
+        '9': ('Pitch Kinematics & Platform Analyzer', ['L1', 'L2']),
+        '10': ('Yaw Kinematics & Handling Analyzer', ['L1', 'L2']),
+        '11': ('Total Lateral Load Transfer (TLLTD)', ['L1'])
     }
     
     while True:
@@ -101,7 +103,7 @@ def view_workbooks():
     for k, v in wbs.items():
         print(f"  ■ {k}")
         for t in v:
-            fname = {"1": "Tire Energy", "3": "Rake Analyzer", "7": "Aero Map", "8": "Downforce Map", "9": "Pitch Analyzer"}.get(t['feature'], f"Feature {t['feature']}")
+            fname = {"1": "Tire Energy", "3": "Rake Analyzer", "7": "Aero Map", "8": "Downforce Map", "9": "Pitch Analyzer", "10": "Yaw Analyzer", "11": "TLLTD Analyzer"}.get(t['feature'], f"Feature {t['feature']}")
             print(f"      - {fname} ({t['layout']})")
     input("\nPress Enter to continue...")
 
@@ -202,6 +204,8 @@ def execute_workflow(project_name, state):
     from analysis.aero_mapping import run_aero_mapping
     from analysis.downforce_mapping import run_downforce_mapping
     from analysis.pitch_kinematics import run_pitch_analyzer
+    from analysis.yaw_kinematics import run_yaw_analyzer
+    from analysis.load_transfer import run_tlltd_analyzer
     
     for i, task in enumerate(tasks):
         f_id = task['feature']
@@ -221,6 +225,10 @@ def execute_workflow(project_name, state):
                 run_downforce_mapping(sessions, headless=True, headless_config=config)
             elif f_id == '9':
                 run_pitch_analyzer(sessions, headless=True, headless_config=config)
+            elif f_id == '10':
+                run_yaw_analyzer(sessions, headless=True, headless_config=config)
+            elif f_id == '11':
+                run_tlltd_analyzer(sessions, headless=True, headless_config=config)
         except Exception as e:
             print(f"      [!] Error executing task: {e}")
             import traceback

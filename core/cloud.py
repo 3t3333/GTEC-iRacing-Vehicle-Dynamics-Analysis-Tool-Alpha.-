@@ -22,10 +22,13 @@ class OpenDAVCloud:
 
     def load_token(self):
         if os.path.exists(AUTH_FILE):
-            with open(AUTH_FILE, 'r') as f:
-                data = json.load(f)
-                self.user_id = data.get("user", {}).get("id", "")
-                return data.get("access_token", "")
+            try:
+                with open(AUTH_FILE, 'r') as f:
+                    data = json.load(f)
+                    self.user_id = data.get("user", {}).get("id", "")
+                    return data.get("access_token", "")
+            except:
+                pass
         return ""
 
     def save_token(self, token_data):
@@ -85,6 +88,7 @@ class OpenDAVCloud:
         if os.path.exists(AUTH_FILE):
             os.remove(AUTH_FILE)
         self.token = ""
+        self.user_id = ""
         print("[+] Logged out from OpenDAV Cloud.")
 
     def get_headers(self):
@@ -94,6 +98,42 @@ class OpenDAVCloud:
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }
+
+
+    def list_available_projects(self):
+        """Returns a list of all project folders the user is allowed to access in the cloud."""
+        if not self.is_logged_in():
+            return []
+            
+        search_url = f"{self.base_url}/storage/v1/object/list/opendav_assets"
+        search_payload = {
+            "prefix": "",
+            "limit": 100,
+            "offset": 0,
+            "sortBy": {"column": "name", "order": "asc"}
+        }
+        
+        projects = []
+        try:
+            r = requests.post(search_url, headers=self.get_headers(), json=search_payload)
+            if r.status_code == 200:
+                for item in r.json():
+                    # Root level items in our bucket are the Project Folders
+                    # Supabase returns them as objects with no 'id' or 'metadata'
+                    if item['name'] != '.emptyFolderPlaceholder' and not item.get('id'):
+                        projects.append(item['name'])
+            else:
+                print(f"  [!] Failed to fetch project list (Status {r.status_code}): {r.text}")
+                if "exp" in r.text:
+                    print("\n[!] Your login session has expired (Supabase tokens last 1 hour).")
+                    print("    Please go to Settings -> Option 3 and Login again.")
+        except Exception as e:
+            print(f"  [!] Network error: {e}")
+            
+        if not projects and r.status_code == 200:
+            print("  [!] Your team's SimGit cloud repository is currently empty.")
+            
+        return projects
 
     def push_project(self, project_name, local_path):
         if not self.is_logged_in():
@@ -119,11 +159,8 @@ class OpenDAVCloud:
         
         try:
             r = requests.post(db_url, headers=self.get_headers(), json=payload)
-            # 409 means conflict (already exists), which is fine for a simple implementation, 
-            # we should really use UPSERT (Prefer: resolution=merge-duplicates) but Supabase requires a PK.
-            # For this CLI, we will just focus on the Storage bucket for now since the DB schema might not be set up by the user yet!
+            # 409 means conflict (already exists)
             if r.status_code not in [200, 201, 204, 409]:
-                # We won't strictly fail here because the user might not have created the 'projects' table yet.
                 pass
         except:
             pass
@@ -154,7 +191,6 @@ class OpenDAVCloud:
                     if not os.path.isfile(file_path): continue
                     
                     # Calculate the relative path from the project root
-                    # e.g. "exports/Daytona_2026/Aero.png"
                     rel_dir = os.path.relpath(root, local_path).replace('\\', '/')
                     remote_name = f
                     content_type = "application/octet-stream"
@@ -188,10 +224,8 @@ class OpenDAVCloud:
             }
             
             try:
+                import urllib.parse
                 with open(local_file, 'rb') as f_data:
-                    # Using POST to upload new. Supabase returns 400 if it exists. 
-                    # We should probably use PUT /storage/v1/object/opendav_assets/path to overwrite.
-                    import urllib.parse
                     put_url = f"{bucket_url}/{urllib.parse.quote(remote_path)}"
                     res = requests.put(put_url, headers=upload_headers, data=f_data)
                     
@@ -199,22 +233,26 @@ class OpenDAVCloud:
                         print(" OK")
                         success_count += 1
                     else:
-                        # Fallback to POST if PUT fails (sometimes bucket policies require POST for new files)
                         post_url = f"{bucket_url}/{urllib.parse.quote(remote_path)}"
                         res_post = requests.post(post_url, headers=upload_headers, data=f_data)
                         if res_post.status_code in [200, 201]:
                             print(" OK")
                             success_count += 1
                         else:
-                            print(f" FAILED ({res.status_code}: {res.text})")
-                        if "exp" in res.text:
-                            print("\n[!] Your login session has expired (Supabase tokens last 1 hour).")
-                            print("    Please go to Settings -> Option 3 and Login again.")
-                            return
+                            if res_post.status_code == 403:
+                                print(" FAILED (403: Access Denied. Read-Only / Customer Role?)")
+                            else:
+                                print(f" FAILED ({res_post.status_code}: {res_post.text})")
+                            
+                            if "exp" in res_post.text:
+                                print("\n[!] Your login session has expired (Supabase tokens last 1 hour).")
+                                print("    Please go to Settings -> Option 3 and Login again.")
+                                return
             except Exception as e:
                 print(f" ERROR ({e})")
                 
-                print(f"\n[+] Push complete. Synced {success_count}/{len(upload_queue)} files.")
+        print(f"\n[+] Push complete. Synced {success_count}/{len(upload_queue)} files.")
+        
         # Cleanup temporary local zips
         for local_file, _, _ in upload_queue:
             if local_file.endswith('.zip'):
@@ -238,8 +276,6 @@ class OpenDAVCloud:
             
         download_url = f"{self.base_url}/storage/v1/object/opendav_assets"
         
-        # In Supabase Storage, the `list` endpoint only returns the direct children of the prefix.
-        # We need to manually recurse into the folders.
         all_files = []
         folders_to_scan = [""] # root
         
@@ -247,7 +283,6 @@ class OpenDAVCloud:
             current_folder = folders_to_scan.pop(0)
             prefix = f"{project_name}/{current_folder}" if current_folder else f"{project_name}"
             
-            # The search path must end with a slash to list a directory in Supabase
             if not prefix.endswith("/"): prefix += "/"
                 
             search_payload = {
@@ -263,14 +298,13 @@ class OpenDAVCloud:
                     for item in r.json():
                         if item['name'] == '.emptyFolderPlaceholder': continue
                         
-                        # If it has no 'id' or 'metadata', it's a directory placeholder
                         if not item.get('id'):
                             folders_to_scan.append(os.path.join(current_folder, item['name']).replace('\\', '/'))
                         else:
                             item['full_path'] = os.path.join(current_folder, item['name']).replace('\\', '/')
                             all_files.append(item)
                 else:
-                    if not all_files: # Only print error if it's the root failure
+                    if not all_files:
                         print(f"  [!] Failed to locate project in cloud (Status {r.status_code}): {r.text}")
                         if "exp" in r.text:
                             print("\n[!] Your login session has expired (Supabase tokens last 1 hour).")
@@ -289,13 +323,11 @@ class OpenDAVCloud:
             remote_file_path = f"{project_name}/{item['full_path']}"
             local_file_path = os.path.join(local_path, item['full_path'])
             
-            # Ensure local subdirectories exist (e.g. telemetry/)
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
             
             print(f"  <- Downloading {item['name']}...", end="", flush=True)
             
             try:
-                # GET request to download
                 dl_res = requests.get(f"{download_url}/{remote_file_path}", headers={"apikey": self.anon_key, "Authorization": f"Bearer {self.token}"}, stream=True)
                 
                 if dl_res.status_code == 200:
@@ -303,14 +335,13 @@ class OpenDAVCloud:
                         for chunk in dl_res.iter_content(chunk_size=8192):
                             f_out.write(chunk)
                     
-                    # Unzip telemetry
                     if local_file_path.lower().endswith('.zip'):
                         print(" Extracting...", end="", flush=True)
                         try:
                             import zipfile
                             with zipfile.ZipFile(local_file_path, 'r') as zip_ref:
                                 zip_ref.extractall(os.path.dirname(local_file_path))
-                            os.remove(local_file_path) # Clean up zip
+                            os.remove(local_file_path)
                         except:
                             print(" ERROR (Zip)", end="")
                             
