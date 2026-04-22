@@ -33,14 +33,14 @@ def _docked_print(*args, sep=' ', end='\n', file=None, flush=False):
         text = sep.join(str(a) for a in args)
         lines = text.split('\n')
         # Only add padding to non-empty lines to prevent trailing spaces on empty lines
-        docked_lines = [(" " * 23 + line) if line else "" for line in lines]
+        docked_lines = [(" " * 10 + line) if line else "" for line in lines]
         _orig_print('\n'.join(docked_lines), end=end, file=file, flush=flush)
     else:
         _orig_print(*args, sep=sep, end=end, file=file, flush=flush)
 
 def _docked_input(prompt=""):
     lines = prompt.split('\n')
-    docked_lines = [(" " * 23 + line) if line else "" for line in lines]
+    docked_lines = [(" " * 10 + line) if line else "" for line in lines]
     return _orig_input('\n'.join(docked_lines))
 
 builtins.print = _docked_print
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     
     def update_screen(text):
         global spinner_idx
-        sys.stdout.write(f"\r{' '*23}  Initializing System {spinner[spinner_idx % len(spinner)]} \n{' '*23}  {text:<60}\033[F")
+        sys.stdout.write(f"\r{' '*10}  Initializing System {spinner[spinner_idx % len(spinner)]} \n{' '*10}  {text:<60}\033[F")
         sys.stdout.flush()
         spinner_idx += 1
         time.sleep(0.05)
@@ -386,26 +386,33 @@ def main():
             })
         
         while True:
-            splash.print_header("Analysis Tools")
+            splash.print_header("Analysis Tools", path="Sandbox")
+            from ui.splash import C_ACTION, C_INFO, OpenDAV_RESET
             if len(sessions) == 1:
-                print(f" File: {sessions[0]['file_path']}")
+                print(f"  {C_INFO}Analyzing:{OpenDAV_RESET} {sessions[0]['file_path']}")
             else:
-                print(f" Comparing {len(sessions)} files")
-            print("─" * 100)
-            print("  1. Tire Energy & Work Profiler")
-            print("  2. Static Setup Viewer (alpha)")
-            print("  3. Dynamic Aero/Rake Analyzer")
-            print("  4. Tire & Fuel Windows")
-            print("  5. Sector Tire Temp & Load Mapping")
-            print("  6. Custom Math Graphing Tool (Sandbox)")
-            print("  7. Empirical Aero Map Generator (GUI Support)")
-            print("  8. Downforce Mapping Module (GUI Support)")
-            print("  9. Pitch Kinematics & Platform Analyzer")
-            print("  10. Yaw Kinematics & Handling Analyzer")
-            print("  11. Total Lateral Load Transfer (TLLTD)")
-            print("─" * 100)
+                print(f"  {C_INFO}Comparing:{OpenDAV_RESET} {len(sessions)} files")
+            
+            tools = [
+                (1, "Tire Energy Profiler", "Physical work and abuse bias"),
+                (2, "Static Setup Viewer", "YAML mechanical state"),
+                (3, "Dynamic Rake Analyzer", "Attitude vs Speed trend"),
+                (4, "Tire & Fuel Windows", "Stint performance tracking"),
+                (5, "Tire Temp/Load Map", "Sector grip performance"),
+                (6, "Custom Math Sandbox", "User-defined telemetry plots"),
+                (7, "Empirical Aero Map", "3D Balance & Rake Topography"),
+                (8, "Downforce Mapping", "Total Load & Aero Efficiency"),
+                (9, "Pitch & Platform", "Braking dive and squat stiffness"),
+                (10, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
+                (11, "TLLTD Distribution", "Lateral load transfer distribution")
+            ]
+            
+            print("  " + "─" * 98)
+            for num, name, desc in tools:
+                print(f"    {C_ACTION}{num:2}.{OpenDAV_RESET} {name.ljust(25)} {C_INFO}>> {desc}{OpenDAV_RESET}")
+            print("  " + "─" * 98)
 
-            tool_choice = input("\nSelect a tool (number), 'p' for Main Menu, or 'q' to quit: ").strip().lower()
+            tool_choice = input(f"\n  Select a tool ({C_ACTION}number{OpenDAV_RESET}), '{C_ACTION}p{OpenDAV_RESET}' for Main Menu, or '{C_ACTION}q{OpenDAV_RESET}' to quit: ").strip().lower()
             if tool_choice == 'q':
                 splash.show_exit_screen()
                 return

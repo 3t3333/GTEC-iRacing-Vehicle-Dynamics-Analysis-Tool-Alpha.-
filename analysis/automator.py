@@ -33,7 +33,7 @@ def run_automator(sessions):
                 tools_str = preset_val if isinstance(preset_val, str) else preset_val.get('tools', '')
                 print(f"    - {n}: [{tools_str}]")
                 
-        print("─" * 64)
+        print("─" * 100)
         print("  Commands:")
         print("  'run [name]'    : Run a saved preset")
         print("  'new [name]'    : Create a new preset")
@@ -147,9 +147,9 @@ def run_automator(sessions):
             splash.clear_screen = automator_clear
             
             def automator_header(title=""):
-                print("─" * 64)
+                print("─" * 100)
                 print(f"  [ {title} ]")
-                print("─" * 64)
+                print("─" * 100)
             splash.print_header = automator_header
             
             def automator_plt_show(*args, **kwargs):

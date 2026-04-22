@@ -119,15 +119,15 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
             CYAN = '\033[96m'
             RESET = "\033[0m"
             
-            print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + f"[ TIRE ENERGY EXPENDITURE - LAP {int(lap_num)} ]".ljust(47) + " │")
-            print(" │ " + f"FL: [{create_bar(energy_fl, max_e)}] {energy_fl:6.0f} kJ".ljust(47) + " │")
-            print(" │ " + f"FR: [{create_bar(energy_fr, max_e)}] {energy_fr:6.0f} kJ".ljust(47) + " │")
-            print(" │ " + f"RL: [{create_bar(energy_rl, max_e)}] {energy_rl:6.0f} kJ".ljust(47) + " │")
-            print(" │ " + f"RR: [{create_bar(energy_rr, max_e)}] {energy_rr:6.0f} kJ".ljust(47) + " │")
-            print(" │ " + f" ".ljust(47) + " │")
-            print(" │ " + f"ABUSE BIAS: {CYAN}{front_pct:.1f}% Front{RESET} / {PINK}{rear_pct:.1f}% Rear{RESET}".ljust(47 + len(PINK) + len(CYAN) + len(RESET)*2) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print("\n  ┌" + "─" * 98 + "┐")
+            print("  │ " + f"[ TIRE ENERGY EXPENDITURE - LAP {int(lap_num)} ]".ljust(92) + " │")
+            print("  │ " + f"FL: [{create_bar(energy_fl, max_e)}] {energy_fl:6.0f} kJ".ljust(92) + " │")
+            print("  │ " + f"FR: [{create_bar(energy_fr, max_e)}] {energy_fr:6.0f} kJ".ljust(92) + " │")
+            print("  │ " + f"RL: [{create_bar(energy_rl, max_e)}] {energy_rl:6.0f} kJ".ljust(92) + " │")
+            print("  │ " + f"RR: [{create_bar(energy_rr, max_e)}] {energy_rr:6.0f} kJ".ljust(92) + " │")
+            print("  │ " + f" ".ljust(92) + " │")
+            print("  │ " + f"ABUSE BIAS: {CYAN}{front_pct:.1f}% Front{RESET} / {PINK}{rear_pct:.1f}% Rear{RESET}".ljust(47 + len(PINK) + len(CYAN) + len(RESET)*2) + " │")
+            print("  └" + "─" * 98 + "┘")
 
             md = session.get('metadata', {})
             car_name = md.get('car', 'UNKNOWN')

@@ -141,12 +141,12 @@ def run_pitch_analyzer(sessions, headless=False, headless_config=None):
             RESET = "\033[0m"
             
             if not headless:
-                print("\n ┌" + "─" * 49 + "┐")
-                print(" │ " + "[ PITCH KINEMATICS & STIFFNESS ]".ljust(47) + " │")
-                print(" │ " + f"Brake Dive: {PINK}{abs(brake_m):.2f} mm/G{RESET} (R²: {brake_r2:.3f})".ljust(47 + len(PINK) + len(RESET)) + " │")
-                print(" │ " + f"Accel Squat: {CYAN}{abs(accel_m):.2f} mm/G{RESET} (R²: {accel_r2:.3f})".ljust(47 + len(CYAN) + len(RESET)) + " │")
-                print(" │ " + f"Static Rake (0G): {static_rake:.1f} mm".ljust(47) + " │")
-                print(" └" + "─" * 49 + "┘")
+                print("\n  ┌" + "─" * 98 + "┐")
+                print("  │ " + "[ PITCH KINEMATICS & STIFFNESS ]".ljust(92) + " │")
+                print("  │ " + f"Brake Dive: {PINK}{abs(brake_m):.2f} mm/G{RESET} (R²: {brake_r2:.3f})".ljust(47 + len(PINK) + len(RESET)) + " │")
+                print("  │ " + f"Accel Squat: {CYAN}{abs(accel_m):.2f} mm/G{RESET} (R²: {accel_r2:.3f})".ljust(47 + len(CYAN) + len(RESET)) + " │")
+                print("  │ " + f"Static Rake (0G): {static_rake:.1f} mm".ljust(92) + " │")
+                print("  └" + "─" * 98 + "┘")
             
             md = session.get('metadata', {})
             car_name = md.get('car', 'UNKNOWN')

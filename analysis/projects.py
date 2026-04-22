@@ -6,6 +6,7 @@ import datetime
 import yaml
 import shutil
 import ui.splash as splash
+from ui.splash import C_ACTION, C_INFO, C_SUCCESS, C_WARNING, C_DANGER, C_GOLD, OpenDAV_RESET
 
 PROJECTS_DIR = "projects"
 STAGING_DIR = "telemetry"  # Global drop folder for new files
@@ -17,17 +18,16 @@ def run_project_manager():
         os.makedirs(STAGING_DIR)
         
     while True:
-        splash.print_header("Automation & Team Projects (SimGit)")
-        print("  [ LOCAL WORKSPACE ]")
-        print("  1. Create New Project")
-        print("  2. Open Existing Project")
-        print("  3. Manage Workbooks")
-        print("\n  [ CLOUD SYNC ]")
-        print("  4. Browse & Pull Projects from Cloud")
-        print("  p. Return to Main Menu")
-        print("─" * 100)
+        splash.print_header("SimGit Project Manager")
+        print(f"  {C_INFO}[ LOCAL WORKSPACE ]{OpenDAV_RESET}")
+        print(f"    {C_ACTION}1.{OpenDAV_RESET} Create New Project Repo")
+        print(f"    {C_ACTION}2.{OpenDAV_RESET} Open Existing Repository")
+        print(f"    {C_ACTION}3.{OpenDAV_RESET} Global Workbook Management")
+        print(f"\n  {C_INFO}[ TEAM SYNC ]{OpenDAV_RESET}")
+        print(f"    {C_ACTION}4.{OpenDAV_RESET} Browse & Pull from Cloud")
+        print("  " + "─" * 98)
         
-        choice = input("\nSelect an option: ").strip().lower()
+        choice = input(f"\n  Select an option ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' to go back: ").strip().lower()
         
         if choice == 'p': break
         elif choice == '1': create_project()
@@ -86,8 +86,10 @@ def list_projects():
         
     while True:
         splash.print_header("Select Project Repository")
-        for i, p in enumerate(projects):
-            print(f"  {i+1}. {p}")
+        print(f"    {'ID':3} | {'REPOSITORY NAME':40}")
+    print(f"    {'─'*3}─┼─{'─'*40}")
+    for i, p in enumerate(projects):
+        print(f"    {C_ACTION}{i+1:2}.{OpenDAV_RESET} | {C_GOLD}{p.ljust(40)}{OpenDAV_RESET}")
         print("  p. Back")
         print("─" * 100)
         
@@ -114,28 +116,28 @@ def manage_project(name):
             input("\nPress Enter to return...")
             return
             
-        splash.print_header(f"Project Workspace: {name}")
-        print(f"  Tracked Telemetry: {len(state['linked_files'])} | Baseline: {os.path.basename(state['baseline']) if state['baseline'] else 'None'}")
+        splash.print_header(f"Workspace: {name}", path="SimGit")
         
-        # Count other assets
+        # Stats Block
         sto_count = len(os.listdir(os.path.join(path, "setups")))
         lap_count = len(os.listdir(os.path.join(path, "lapfiles")))
-        print(f"  Tracked Setups (.sto): {sto_count} | Tracked Lapfiles (.blap): {lap_count}")
-        print("─" * 100)
+        baseline = os.path.basename(state['baseline']) if state['baseline'] else "None"
         
-        print("  [ LOCAL WORKSPACE ]")
-        print("  1. Commit Files (Add from Staging to Project)")
-        print("  2. Run Individual Analysis (Manual)")
-        print("  3. Run Automation Workflow (Workbooks)")
-        print("  4. View Setup History (Timeline)")
-        print("  5. Install Setup/Lapfile to iRacing")
-        print("  6. Set Baseline Telemetry File")
-        print("\n  [ TEAM SYNC (CLOUD) ]")
-        print("  7. Push to OpenDAV Cloud (Supabase)")
-        print("  p. Back to Project Manager")
-        print("─" * 100)
+        print(f"  {C_INFO}Repository Status:{OpenDAV_RESET}")
+        print(f"    Telemetry: {len(state['linked_files']):2} files | Setups: {sto_count:2} files | Ghost Laps: {lap_count:2} files")
+        print(f"    Baseline:  {C_SUCCESS}{baseline}{OpenDAV_RESET}")
+        print("  " + "─" * 98)
         
-        choice = input("\nSelect an option: ").strip().lower()
+        print(f"  {C_INFO}[ DEVELOP ]{OpenDAV_RESET}")
+        print(f"    {C_ACTION}1.{OpenDAV_RESET} Commit New Files          {C_ACTION}2.{OpenDAV_RESET} Individual Analysis")
+        print(f"    {C_ACTION}3.{OpenDAV_RESET} Run Automated Workbook    {C_ACTION}4.{OpenDAV_RESET} View Setup Timeline")
+        print(f"\n  {C_INFO}[ DEPLOY ]{OpenDAV_RESET}")
+        print(f"    {C_ACTION}5.{OpenDAV_RESET} Install to iRacing        {C_ACTION}6.{OpenDAV_RESET} Change Baseline File")
+        print(f"\n  {C_INFO}[ REMOTE ]{OpenDAV_RESET}")
+        print(f"    {C_ACTION}7.{OpenDAV_RESET} Push to Team Cloud (Supabase)")
+        print("  " + "─" * 98)
+        
+        choice = input(f"\n  Selection ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' for Repositories: ").strip().lower()
         if choice == 'p': break
         
         if choice == '1': commit_files(name, path, state)
@@ -482,25 +484,30 @@ def run_manual_analysis(project_name, state):
         sessions = [{'data': data, 'limit': limit, 'channels': channels, 'metadata': metadata, 'file_path': primary_path}]
         
         while True:
-            splash.print_header(f"Analysis Tools - {project_name}")
-            print(f" File: {os.path.basename(primary_path)}")
-            print("─" * 100)
-            print("  [HINT] To save graphs to this project, type e.g. 'print L1 < " + project_name + "'")
-            print("─" * 100)
-            print("  1. Tire Energy & Work Profiler")
-            print("  2. Static Setup Viewer (alpha)")
-            print("  3. Dynamic Aero/Rake Analyzer")
-            print("  4. Tire & Fuel Windows")
-            print("  5. Sector Tire Temp & Load Mapping")
-            print("  6. Custom Math Graphing Tool (Sandbox)")
-            print("  7. Empirical Aero Map Generator (GUI Support)")
-            print("  8. Downforce Mapping Module (GUI Support)")
-            print("  9. Pitch Kinematics & Platform Analyzer")
-            print("  10. Yaw Kinematics & Handling Analyzer")
-            print("  11. Total Lateral Load Transfer (TLLTD)")
-            print("─" * 100)
+            splash.print_header(f"Manual Analysis", path=f"SimGit > {project_name}")
+            print(f"  {C_INFO}Analyzing:{OpenDAV_RESET} {os.path.basename(primary_path)}")
+            print(f"  {C_GOLD}[HINT]{OpenDAV_RESET} To save locally, use: {C_ACTION}print L1 < {project_name}{OpenDAV_RESET}")
             
-            tool_choice = input("\nSelect a tool (number), or 'p' to select different file: ").strip().lower()
+            tools = [
+                (1, "Tire Energy Profiler", "Physical work and abuse bias"),
+                (2, "Static Setup Viewer", "YAML mechanical state"),
+                (3, "Dynamic Rake Analyzer", "Attitude vs Speed trend"),
+                (4, "Tire & Fuel Windows", "Stint performance tracking"),
+                (5, "Tire Temp/Load Map", "Sector grip performance"),
+                (6, "Custom Math Sandbox", "User-defined telemetry plots"),
+                (7, "Empirical Aero Map", "3D Balance & Rake Topography"),
+                (8, "Downforce Mapping", "Total Load & Aero Efficiency"),
+                (9, "Pitch & Platform", "Braking dive and squat stiffness"),
+                (10, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
+                (11, "TLLTD Distribution", "Lateral load transfer distribution")
+            ]
+            
+            print("  " + "─" * 98)
+            for num, tool_name, desc in tools:
+                print(f"    {C_ACTION}{num:2}.{OpenDAV_RESET} {tool_name.ljust(25)} {C_INFO}>> {desc}{OpenDAV_RESET}")
+            print("  " + "─" * 98)
+            
+            tool_choice = input(f"\n  Select tool ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' to change file: ").strip().lower()
             if tool_choice == 'p': break
             
             if tool_choice == '1':

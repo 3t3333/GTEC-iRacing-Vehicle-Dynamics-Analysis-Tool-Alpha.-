@@ -126,11 +126,11 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
             bias_str = f"{CYAN}Understeer{RESET}" if median_err < 0 else f"{PINK}Oversteer{RESET}"
             
             if not headless:
-                print("\n ┌" + "─" * 49 + "┐")
-                print(" │ " + "[ YAW KINEMATICS & BALANCE ]".ljust(47) + " │")
-                print(" │ " + f"Median Yaw Error: {abs(median_err):.2f} deg/s ({bias_str})".ljust(47 + len(PINK) + len(RESET)) + " │")
-                print(" │ " + f"Wheelbase: {wheelbase:.3f} m | Ratio: {steering_ratio:.1f}".ljust(47) + " │")
-                print(" └" + "─" * 49 + "┘")
+                print("\n  ┌" + "─" * 98 + "┐")
+                print("  │ " + "[ YAW KINEMATICS & BALANCE ]".ljust(92) + " │")
+                print("  │ " + f"Median Yaw Error: {abs(median_err):.2f} deg/s ({bias_str})".ljust(47 + len(PINK) + len(RESET)) + " │")
+                print("  │ " + f"Wheelbase: {wheelbase:.3f} m | Ratio: {steering_ratio:.1f}".ljust(92) + " │")
+                print("  └" + "─" * 98 + "┘")
 
             l1_preview = f"""
         L1: YAW ERROR SCATTER (RAW)                       HANDLING BALANCE MAP               
