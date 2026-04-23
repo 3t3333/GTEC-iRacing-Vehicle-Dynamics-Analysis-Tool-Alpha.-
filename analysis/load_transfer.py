@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -96,8 +97,8 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
                 print("  │ " + "[ TLLTD - LATERAL LOAD TRANSFER ]".ljust(92) + " │")
-                print("  │ " + f"Front TLLTD: {CYAN}{avg_tlltd_f:.1f}%{RESET}".ljust(47 + len(CYAN) + len(RESET)) + " │")
-                print("  │ " + f"Rear TLLTD:  {PINK}{avg_tlltd_r:.1f}%{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
+                print("  │ " + f"Front TLLTD: {CYAN}{avg_tlltd_f:.1f}%{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
+                print("  │ " + f"Rear TLLTD:  {PINK}{avg_tlltd_r:.1f}%{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
                 print("  │ " + f"Static Weight Bias: {static_f_bias:.1f}% Front".ljust(92) + " │")
                 print("  └" + "─" * 98 + "┘")
 
@@ -143,7 +144,15 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
                     if not headless: print("  [+] Building TLLTD Distribution Graph...")
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig = plt.figure(figsize=(10, 7), num='OpenDAV - TLLTD Analysis')
 
                     # Bar chart

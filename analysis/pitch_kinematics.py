@@ -143,8 +143,8 @@ def run_pitch_analyzer(sessions, headless=False, headless_config=None):
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
                 print("  │ " + "[ PITCH KINEMATICS & STIFFNESS ]".ljust(92) + " │")
-                print("  │ " + f"Brake Dive: {PINK}{abs(brake_m):.2f} mm/G{RESET} (R²: {brake_r2:.3f})".ljust(47 + len(PINK) + len(RESET)) + " │")
-                print("  │ " + f"Accel Squat: {CYAN}{abs(accel_m):.2f} mm/G{RESET} (R²: {accel_r2:.3f})".ljust(47 + len(CYAN) + len(RESET)) + " │")
+                print("  │ " + f"Brake Dive: {PINK}{abs(brake_m):.2f} mm/G{RESET} (R²: {brake_r2:.3f})".ljust(96 + len(PINK) + len(RESET)) + " │")
+                print("  │ " + f"Accel Squat: {CYAN}{abs(accel_m):.2f} mm/G{RESET} (R²: {accel_r2:.3f})".ljust(96 + len(CYAN) + len(RESET)) + " │")
                 print("  │ " + f"Static Rake (0G): {static_rake:.1f} mm".ljust(92) + " │")
                 print("  └" + "─" * 98 + "┘")
             
@@ -214,17 +214,25 @@ def run_pitch_analyzer(sessions, headless=False, headless_config=None):
                     if not headless: print("  [+] Building Pitch Kinematics Graph...")
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig = plt.figure(figsize=(12, 7), num='OpenDAV - Pitch Kinematics Analyzer')
     
-                    sc_b = plt.scatter(brake_g, brake_pitch, c=brake_speed, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140)
-                    sc_a = plt.scatter(accel_g, accel_pitch, c=accel_speed, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140)
+                    sc_b = plt.scatter(brake_g, brake_pitch, c=brake_speed, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140, rasterized=True)
+                    sc_a = plt.scatter(accel_g, accel_pitch, c=accel_speed, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140, rasterized=True)
                     cbar = plt.colorbar(sc_b, pad=0.02)
                     cbar.set_label('Speed (km/h)', fontsize=11)
                     
                     # Invisible scatter points just for the legend
-                    plt.scatter([], [], color='#FF1493', s=15, label='Braking Telemetry')
-                    plt.scatter([], [], color='#2D8AE2', s=15, label='Accel Telemetry')
+                    plt.scatter([], [], color='#FF1493', s=15, label='Braking Telemetry', rasterized=True)
+                    plt.scatter([], [], color='#2D8AE2', s=15, label='Accel Telemetry', rasterized=True)
                     
                     if len(brake_g) > 10:
                         x_b = np.array([min(brake_g), 0])
@@ -376,8 +384,8 @@ def run_pitch_analyzer(sessions, headless=False, headless_config=None):
                         (ax1, brake_g, brake_pitch, brake_speed, accel_g, accel_pitch, accel_speed, brake_m, brake_c, accel_m, accel_c, "PRIMARY", f"{file_basename}"),
                         (ax2, r_valid_g[r_valid_g < -0.2], r_valid_pitch[r_valid_g < -0.2], r_brake_speed, r_valid_g[r_valid_g > 0.2], r_valid_pitch[r_valid_g > 0.2], r_accel_speed, r_b_m, r_b_c, r_a_m, r_a_c, "REFERENCE", f"{delta_title}")
                     ]):
-                        sc_b = ax.scatter(b_g, b_p, c=b_s, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140)
-                        sc_a = ax.scatter(a_g, a_p, c=a_s, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140)
+                        sc_b = ax.scatter(b_g, b_p, c=b_s, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140, rasterized=True)
+                        sc_a = ax.scatter(a_g, a_p, c=a_s, cmap=opendav_cmap, alpha=0.6, s=15, edgecolors='none', vmin=40, vmax=140, rasterized=True)
                         
                         # Only add colorbar on the second plot to save space, or a shared one below.
                         if i_ax == 1:

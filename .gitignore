@@ -21,6 +21,7 @@ NEW_AGENT_ONBOARDING.txt
 Agent_action_log.txt
 URGENT_ARCHITECTURE_NOTICE.txt
 webmaster_report.txt
+vault/
 
 #extra
 opendav_config.json

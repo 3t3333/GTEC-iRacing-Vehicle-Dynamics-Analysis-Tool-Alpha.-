@@ -128,7 +128,7 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
                 print("  │ " + "[ YAW KINEMATICS & BALANCE ]".ljust(92) + " │")
-                print("  │ " + f"Median Yaw Error: {abs(median_err):.2f} deg/s ({bias_str})".ljust(47 + len(PINK) + len(RESET)) + " │")
+                print("  │ " + f"Median Yaw Error: {abs(median_err):.2f} deg/s ({bias_str})".ljust(96 + len(PINK) + len(RESET)) + " │")
                 print("  │ " + f"Wheelbase: {wheelbase:.3f} m | Ratio: {steering_ratio:.1f}".ljust(92) + " │")
                 print("  └" + "─" * 98 + "┘")
 
@@ -194,15 +194,23 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                     if not headless: print("  [+] Building Handling Balance Graph...")
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig = plt.figure(figsize=(12, 7), num='OpenDAV - Handling Balance')
 
                     # Separate OS and US for coloring
                     os_mask = plot_yaw_err > 0
                     us_mask = plot_yaw_err <= 0
                     
-                    plt.scatter(plot_lat_g[us_mask], plot_yaw_err[us_mask], alpha=0.3, color='#2D8AE2', s=5, label='Understeer')
-                    plt.scatter(plot_lat_g[os_mask], plot_yaw_err[os_mask], alpha=0.3, color='#FF1493', s=5, label='Oversteer')
+                    plt.scatter(plot_lat_g[us_mask], plot_yaw_err[us_mask], alpha=0.3, color='#2D8AE2', s=5, label='Understeer', rasterized=True)
+                    plt.scatter(plot_lat_g[os_mask], plot_yaw_err[os_mask], alpha=0.3, color='#FF1493', s=5, label='Oversteer', rasterized=True)
                     
                     # Trend line (Handling Gradient)
                     if len(plot_lat_g) > 20:
@@ -326,8 +334,8 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                         # OS/US coloring
                         os_m = err_data > 0
                         us_m = err_data <= 0
-                        ax.scatter(g_data[us_m], err_data[us_m], alpha=0.3, color='#2D8AE2', s=4)
-                        ax.scatter(g_data[os_m], err_data[os_m], alpha=0.3, color='#FF1493', s=4)
+                        ax.scatter(g_data[us_m], err_data[us_m], alpha=0.3, color='#2D8AE2', s=4, rasterized=True)
+                        ax.scatter(g_data[os_m], err_data[os_m], alpha=0.3, color='#FF1493', s=4, rasterized=True)
                         
                         if len(g_data) > 20:
                             m, c = np.polyfit(g_data, err_data, 1)

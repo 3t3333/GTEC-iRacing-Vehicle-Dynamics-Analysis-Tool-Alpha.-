@@ -80,30 +80,33 @@ def create_project():
 def list_projects():
     projects = [d for d in os.listdir(PROJECTS_DIR) if os.path.isdir(os.path.join(PROJECTS_DIR, d))]
     if not projects:
-        print("[!] No local projects found.")
-        input("\nPress Enter to continue...")
+        print("  [!] No local projects found.")
+        input("\n  Press Enter to continue...")
         return
         
     while True:
         splash.print_header("Select Project Repository")
         print(f"    {'ID':3} | {'REPOSITORY NAME':40}")
-    print(f"    {'─'*3}─┼─{'─'*40}")
-    for i, p in enumerate(projects):
-        print(f"    {C_ACTION}{i+1:2}.{OpenDAV_RESET} | {C_GOLD}{p.ljust(40)}{OpenDAV_RESET}")
-        print("  p. Back")
-        print("─" * 100)
+        print(f"    {'─'*3}─┼─{'─'*40}")
+        for i, p in enumerate(projects):
+            print(f"    {C_ACTION}{i+1:2}.{OpenDAV_RESET} | {C_GOLD}{p.ljust(40)}{OpenDAV_RESET}")
         
-        choice = input("\nSelect a project: ").strip().lower()
+        print("  " + "─" * 98)
+        
+        choice = input(f"\n  Selection ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' to go back: ").strip().lower()
         if choice == 'p': break
         try:
             idx = int(choice) - 1
             if 0 <= idx < len(projects):
                 manage_project(projects[idx])
-                break
             else:
-                print("[!] Invalid selection.")
+                print("  [!] Invalid index.")
+                import time
+                time.sleep(1)
         except ValueError:
-            print("[!] Invalid selection.")
+            print("  [!] Invalid selection.")
+            import time
+            time.sleep(1)
 
 def manage_project(name):
     path = os.path.join(PROJECTS_DIR, name)

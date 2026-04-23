@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 

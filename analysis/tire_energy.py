@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -120,40 +121,51 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
             RESET = "\033[0m"
             
             print("\n  ┌" + "─" * 98 + "┐")
-            print("  │ " + f"[ TIRE ENERGY EXPENDITURE - LAP {int(lap_num)} ]".ljust(92) + " │")
-            print("  │ " + f"FL: [{create_bar(energy_fl, max_e)}] {energy_fl:6.0f} kJ".ljust(92) + " │")
-            print("  │ " + f"FR: [{create_bar(energy_fr, max_e)}] {energy_fr:6.0f} kJ".ljust(92) + " │")
-            print("  │ " + f"RL: [{create_bar(energy_rl, max_e)}] {energy_rl:6.0f} kJ".ljust(92) + " │")
-            print("  │ " + f"RR: [{create_bar(energy_rr, max_e)}] {energy_rr:6.0f} kJ".ljust(92) + " │")
-            print("  │ " + f" ".ljust(92) + " │")
-            print("  │ " + f"ABUSE BIAS: {CYAN}{front_pct:.1f}% Front{RESET} / {PINK}{rear_pct:.1f}% Rear{RESET}".ljust(47 + len(PINK) + len(CYAN) + len(RESET)*2) + " │")
+            print("  │ " + f"[ TIRE ENERGY EXPENDITURE - LAP {int(lap_num)} ]".ljust(96) + " │")
+            print("  │ " + f"FL: [{create_bar(energy_fl, max_e)}] {energy_fl:6.0f} kJ".ljust(96) + " │")
+            print("  │ " + f"FR: [{create_bar(energy_fr, max_e)}] {energy_fr:6.0f} kJ".ljust(96) + " │")
+            print("  │ " + f"RL: [{create_bar(energy_rl, max_e)}] {energy_rl:6.0f} kJ".ljust(96) + " │")
+            print("  │ " + f"RR: [{create_bar(energy_rr, max_e)}] {energy_rr:6.0f} kJ".ljust(96) + " │")
+            print("  │ " + f" ".ljust(96) + " │")
+            print("  │ " + f"ABUSE BIAS: {CYAN}{front_pct:.1f}% Front{RESET} / {PINK}{rear_pct:.1f}% Rear{RESET}".ljust(96 + len(PINK) + len(CYAN) + len(RESET)*2) + " │")
             print("  └" + "─" * 98 + "┘")
 
             md = session.get('metadata', {})
             car_name = md.get('car', 'UNKNOWN')
             file_basename = os.path.basename(file_path)
 
-            l1_preview = f"""
+            ui_preview = f"""
         L1: TIRE WORK RATE (DYNAMIC)                      TOTAL ENERGY EXPENDITURE               
  ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐      
  │                                         │   │ FRONT LEFT:  [████████--] 1420 kJ       │      
- │                                         │   │ FRONT RIGHT: [██████----] 1100 kJ       │      
- │                                         │   │ REAR LEFT:   [█████-----]  980 kJ       │      
- │                                         │   │ REAR RIGHT:  [███████---] 1250 kJ       │      
- │                                         │   │                                         │      
- │                                         │   │  ABUSE BIAS: 54% FRONT / 46% REAR       │      
- │                                         │   │                                         │      
- │                                         │   │                                         │      
- │ [X] AXIS: TRACK DISTANCE (m)            │   │ [BARS]: INTEGRAL OF WORK OVER LAP       │      
- │ [Y] AXIS: WORK RATE (kW)                │   │ [TEXT]: TOTAL JOULES ABSORBED           │      
- │ [L] LINE: FL, FR, RL, RR TIRES          │   │                                         │      
+ │ [X] AXIS: TRACK DISTANCE (m)            │   │ FRONT RIGHT: [██████----] 1100 kJ       │      
+ │ [Y] AXIS: WORK RATE (kW)                │   │ REAR LEFT:   [█████-----]  980 kJ       │      
+ │ [L] LINE: FL, FR, RL, RR TIRES          │   │ REAR RIGHT:  [███████---] 1250 kJ       │      
  └─────────────────────────────────────────┘   └─────────────────────────────────────────┘      
+
+        L2: SECTOR-BY-SECTOR WEAR (BARS)
+ ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐      
+ │      [ BAR ] OVERALL LAP ENERGY         │   │      [ PIE ] OVERALL AXLE BIAS          │
+ └─────────────────────────────────────────┘   └─────────────────────────────────────────┘      
+    ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐
+    │   SECTOR 1 (0-33%)     │  │   SECTOR 2 (33-66%)    │  │   SECTOR 3 (66-100%)   │
+    │   [BAR] S1 ENERGIES    │  │   [BAR] S2 ENERGIES    │  │   [BAR] S3 ENERGIES    │
+    └────────────────────────┘  └────────────────────────┘  └────────────────────────┘
+
+        L3: SECTOR-BY-SECTOR DYNAMICS (LINES)
+ ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐      
+ │      [ BAR ] OVERALL LAP ENERGY         │   │      [ PIE ] OVERALL AXLE BIAS          │
+ └─────────────────────────────────────────┘   └─────────────────────────────────────────┘      
+    ┌────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐
+    │   SECTOR 1 (0-33%)     │  │   SECTOR 2 (33-66%)    │  │   SECTOR 3 (66-100%)   │
+    │   [LINE] FL,FR,RL,RR   │  │   [LINE] FL,FR,RL,RR   │  │   [LINE] FL,FR,RL,RR   │
+    └────────────────────────┘  └────────────────────────┘  └────────────────────────┘
  
   FILE: {file_basename}
   VEHICLE: {car_name}
   
   >> [USE CASE]: QUANTIFY TIRE DEGRADATION AND IDENTIFY WHICH SETUP CHANGES ARE OVERWORKING SPECIFIC CORNERS."""
-            print(l1_preview)
+            print(ui_preview)
 
             _headless_ran = False
             while True:
@@ -162,7 +174,7 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                     headless_config['_ran'] = True
                     ans_raw = f"print {headless_config['layout'].lower()} < {headless_config['project']}"
                 else:
-                    ans_raw = input(f"\n  Select action ('open L1', 'print L1 < proj', 'p' to go back): ").strip().lower()
+                    ans_raw = input(f"\n  Select action ('open L1/L2/L3', 'print L1/L2/L3', 'p' to go back < proj): ").strip().lower()
                 ans = ans_raw.split('<')[0].strip().lower()
                 
                 if ans == 'p':
@@ -172,7 +184,15 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                     print("  [+] Building Tire Work Profiler Graph...")
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     
                     fig = plt.figure(figsize=(15, 8), num='OpenDAV - Tire Energy & Work Profiler')
                     gs = fig.add_gridspec(2, 2, width_ratios=[2.5, 1], height_ratios=[1, 1])
@@ -250,8 +270,204 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                             plt.close(fig)
                             print(f"  [+] Saved to {export_path}")
                         if headless: break
+
+                
+                elif ans in ['open l3', 'print l3']:
+                    print("  [+] Building Tire Sector Line Graph (L3)...")
+                    import matplotx
+                    plt.style.use(matplotx.styles.aura['dark'])
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
+                    
+                    fig = plt.figure(figsize=(18, 10), num='OpenDAV - Tire Sector Dynamics (L3)')
+                    gs = fig.add_gridspec(2, 3, height_ratios=[1, 1.2], hspace=0.35, wspace=0.3)
+                    
+                    # Top Row: Overall Bar and Pie (centered by using middle/side spans)
+                    ax_bar = fig.add_subplot(gs[0, 0])
+                    corners = ['FL', 'FR', 'RL', 'RR']
+                    energies = [energy_fl, energy_fr, energy_rl, energy_rr]
+                    colors = ['#2D8AE2', '#63B3ED', '#FF1493', '#FF69B4']
+                    bars = ax_bar.bar(corners, energies, color=colors, alpha=0.9)
+                    ax_bar.set_title("Overall Lap Energy (kJ)", fontsize=12, pad=10)
+                    ax_bar.set_ylabel("Energy (kJ)", fontsize=10)
+                    for bar in bars:
+                        yval = bar.get_height()
+                        ax_bar.text(bar.get_x() + bar.get_width()/2, yval + (max_e*0.02), f'{int(yval)}', ha='center', va='bottom', fontsize=8, color='white')
+
+                    ax_pie = fig.add_subplot(gs[0, 1])
+                    ax_pie.pie([front_pct, rear_pct], labels=['Front', 'Rear'], colors=['#2D8AE2', '#FF1493'],
+                               autopct='%1.1f%%', startangle=90, textprops={'color':"w", 'weight':'bold'})
+                    ax_pie.set_title("Overall Axle Energy Bias", fontsize=12, pad=10)
+                    
+                    # Top Right Info Box
+                    ax_info = fig.add_subplot(gs[0, 2])
+                    ax_info.axis('off')
+                    # Set ha='right', va='top' and position at (1.0, 1.0) to pin it to the top right corner
+                    ax_info.text(1.0, 1.0, f"{file_basename}\nLAP {int(lap_num)}\nTIME {lap_time:.3f}s", 
+                                 ha='right', va='top', fontsize=11, color='white', alpha=0.9, weight='normal')
+
+                    # Calculate sectors
+                    lap_dist = dist_arr[lap_idx]
+                    max_d = np.max(lap_dist)
+                    s1_mask = (lap_dist <= max_d / 3)
+                    s2_mask = (lap_dist > max_d / 3) & (lap_dist <= 2 * max_d / 3)
+                    s3_mask = (lap_dist > 2 * max_d / 3)
+                    
+                    # Smoothing for cleaner lines
+                    window = 15
+                    def smooth(data): return np.convolve(data, np.ones(window)/window, mode='same')
+                    
+                    sm_fl, sm_fr = smooth(wr_fl), smooth(wr_fr)
+                    sm_rl, sm_rr = smooth(wr_rl), smooth(wr_rr)
+                    
+                    global_max_wr = max(np.max(sm_fl), np.max(sm_fr), np.max(sm_rl), np.max(sm_rr))
+                    
+                    # Bottom Row: S1, S2, S3 Line charts
+                    masks = [s1_mask, s2_mask, s3_mask]
+                    sector_names = ["Sector 1 (0-33%)", "Sector 2 (33-66%)", "Sector 3 (66-100%)"]
+                    
+                    for i in range(3):
+                        ax_s = fig.add_subplot(gs[1, i])
+                        m = masks[i]
+                        d_s = lap_dist[m]
+                        ax_s.plot(d_s, sm_fl[m], color='#2D8AE2', label='FL', linewidth=1.5)
+                        ax_s.plot(d_s, sm_fr[m], color='#63B3ED', label='FR', linewidth=1.5)
+                        ax_s.plot(d_s, sm_rl[m], color='#FF1493', label='RL', linewidth=1.5)
+                        ax_s.plot(d_s, sm_rr[m], color='#FF69B4', label='RR', linewidth=1.5)
+                        
+                        ax_s.set_title(sector_names[i], fontsize=11, pad=10)
+                        ax_s.set_ylabel("Work (kW)", fontsize=9)
+                        ax_s.set_xlabel("Distance (m)", fontsize=9)
+                        ax_s.set_ylim(0, global_max_wr * 1.1)
+                        ax_s.grid(True, linestyle='--', alpha=0.1)
+                        if i == 2: ax_s.legend(loc='upper right', fontsize=8)
+
+                    plt.tight_layout()
+
+                    if ans == 'open l3':
+                        gui_mode = get_gui_mode()
+                        if gui_mode == 3: show_ctk_graph(fig, "OpenDAV - Tire Sector Dynamics")
+                        else: plt.show()
+                    else:
+                        timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+                        file_out = f"TireEnergy_L3_{timestamp}_{file_basename}.png"
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = headless_config.get('run_folder') if headless else None
+                            save_to_project(fig, project_name, file_out, subfolder=subf)
+                            plt.close(fig)
+                            if headless: break
+                        else:
+                            os.makedirs("exports", exist_ok=True)
+                            export_path = f"exports/{file_out}"
+                            plt.savefig(export_path, dpi=300, bbox_inches='tight')
+                            plt.close(fig)
+                            print(f"  [+] Saved to {export_path}")
+                        if headless: break
+
+                elif ans in ['open l2', 'print l2']:
+                    print("  [+] Building Tire Sector Analysis Graph...")
+                    import matplotx
+                    plt.style.use(matplotx.styles.aura['dark'])
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
+                    
+                    fig = plt.figure(figsize=(16, 9), num='OpenDAV - Tire Sector Analysis (L2)')
+                    gs = fig.add_gridspec(2, 6, height_ratios=[1, 1.2], hspace=0.35, wspace=0.5)
+                    
+                    # Top Row: Overall Bar and Pie
+                    ax_bar = fig.add_subplot(gs[0, 1:3])
+                    corners = ['FL', 'FR', 'RL', 'RR']
+                    energies = [energy_fl, energy_fr, energy_rl, energy_rr]
+                    colors = ['#2D8AE2', '#63B3ED', '#FF1493', '#FF69B4']
+                    
+                    bars = ax_bar.bar(corners, energies, color=colors, alpha=0.9)
+                    ax_bar.set_title("Overall Lap Energy (kJ)", fontsize=12, pad=10)
+                    ax_bar.set_ylabel("Energy (kJ)", fontsize=10)
+                    ax_bar.grid(True, axis='y', linestyle='--', alpha=0.2)
+                    for bar in bars:
+                        yval = bar.get_height()
+                        ax_bar.text(bar.get_x() + bar.get_width()/2, yval + (max_e*0.02), f'{int(yval)}', ha='center', va='bottom', fontsize=9, color='white')
+
+                    ax_pie = fig.add_subplot(gs[0, 3:5])
+                    ax_pie.pie([front_pct, rear_pct], labels=['Front', 'Rear'], colors=['#2D8AE2', '#FF1493'],
+                               autopct='%1.1f%%', startangle=90, textprops={'color':"w", 'weight':'bold'})
+                    ax_pie.set_title("Overall Axle Energy Bias", fontsize=12, pad=10)
+                    
+                    # Calculate sectors
+                    lap_dist = dist_arr[lap_idx]
+                    max_d = np.max(lap_dist)
+                    s1_mask = (lap_dist <= max_d / 3)
+                    s2_mask = (lap_dist > max_d / 3) & (lap_dist <= 2 * max_d / 3)
+                    s3_mask = (lap_dist > 2 * max_d / 3)
+                    
+                    wr_dt = np.array([wr_fl * dt, wr_fr * dt, wr_rl * dt, wr_rr * dt])
+                    s1_energies = np.sum(wr_dt[:, s1_mask], axis=1)
+                    s2_energies = np.sum(wr_dt[:, s2_mask], axis=1)
+                    s3_energies = np.sum(wr_dt[:, s3_mask], axis=1)
+                    
+                    sector_max = max(np.max(s1_energies), np.max(s2_energies), np.max(s3_energies))
+                    
+                    # Bottom Row: S1, S2, S3 Bar charts
+                    axes_bot = [fig.add_subplot(gs[1, 0:2]), fig.add_subplot(gs[1, 2:4]), fig.add_subplot(gs[1, 4:6])]
+                    sector_data = [s1_energies, s2_energies, s3_energies]
+                    sector_names = ["Sector 1 (0-33%)", "Sector 2 (33-66%)", "Sector 3 (66-100%)"]
+                    
+                    for i, ax_s in enumerate(axes_bot):
+                        s_bars = ax_s.bar(corners, sector_data[i], color=colors, alpha=0.9)
+                        ax_s.set_title(sector_names[i], fontsize=11, pad=10)
+                        ax_s.set_ylabel("Energy (kJ)", fontsize=9)
+                        ax_s.set_ylim(0, sector_max * 1.15)
+                        ax_s.grid(True, axis='y', linestyle='--', alpha=0.2)
+                        for bar in s_bars:
+                            yval = bar.get_height()
+                            ax_s.text(bar.get_x() + bar.get_width()/2, yval + (sector_max*0.02), f'{int(yval)}', ha='center', va='bottom', fontsize=8, color='white')
+
+                    info_text = (f"File: {file_basename}\nCar: {car_name}\nFastest Lap: {lap_time:.3f}s")
+                    plt.figtext(0.02, 0.02, info_text, fontsize=9, color='white', alpha=0.8, va='bottom', ha='left',
+                                bbox=dict(facecolor='#1a1a1a', alpha=0.8, edgecolor='none', boxstyle='round,pad=0.5'))
+
+                    plt.tight_layout()
+
+                    if ans == 'open l2':
+                        gui_mode = get_gui_mode()
+                        if gui_mode == 3: show_ctk_graph(fig, "OpenDAV - Tire Sector Analysis")
+                        else: plt.show()
+                    else:
+                        timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+                        file_out = f"TireEnergy_L2_{timestamp}_{file_basename}.png"
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = headless_config.get('run_folder') if headless else None
+                            save_to_project(fig, project_name, file_out, subfolder=subf)
+                            plt.close(fig)
+                            if headless: break
+                        else:
+                            os.makedirs("exports", exist_ok=True)
+                            export_path = f"exports/{file_out}"
+                            plt.savefig(export_path, dpi=300, bbox_inches='tight')
+                            plt.close(fig)
+                            print(f"  [+] Saved to {export_path}")
+                        if headless: break
+
                 else:
-                    print("  [!] Invalid command. Try 'open L1', 'print L1', or 'p'.")
+                    print("  [!] Invalid command. Try 'open L1/L2/L3', 'print L1/L2/L3', or 'p'.")
 
         if headless: return
         print("\n" + "─"*100)

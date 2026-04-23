@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import numpy as np
+from scipy.spatial import cKDTree
 import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 
@@ -96,17 +97,17 @@ def run_tire_fuel_windows(sessions):
 
             # 1. Primary Window Box
             print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + f"[ TIRE & FUEL WINDOWS ]".ljust(47) + " │")
-            print(" │ " + f"Fastest Lap:  {GOLD}Lap {int(fastest_lap)}{RESET} ({fastest_time:.3f} s)".ljust(47 + len(GOLD) + len(RESET)) + " │")
-            print(" │ " + f"Start Fuel:   {start_fuel}".ljust(47) + " │")
+            print(" │ " + f"[ TIRE & FUEL WINDOWS ]".ljust(96) + " │")
+            print(" │ " + f"Fastest Lap:  {GOLD}Lap {int(fastest_lap)}{RESET} ({fastest_time:.3f} s)".ljust(96 + len(GOLD) + len(RESET)) + " │")
+            print(" │ " + f"Start Fuel:   {start_fuel}".ljust(96) + " │")
             print(" ├" + "─" * 49 + "┤")
-            print(" │ " + f"{CYAN}Average Tire Temperatures{RESET}".ljust(47 + len(CYAN) + len(RESET)) + " │")
-            print(" │ " + f"  FL: {avg_t_fl:<10} | FR: {avg_t_fr}".ljust(47) + " │")
-            print(" │ " + f"  RL: {avg_t_rl:<10} | RR: {avg_t_rr}".ljust(47) + " │")
+            print(" │ " + f"{CYAN}Average Tire Temperatures{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
+            print(" │ " + f"  FL: {avg_t_fl:<10} | FR: {avg_t_fr}".ljust(96) + " │")
+            print(" │ " + f"  RL: {avg_t_rl:<10} | RR: {avg_t_rr}".ljust(96) + " │")
             print(" ├" + "─" * 49 + "┤")
-            print(" │ " + f"{CYAN}Average Tire Pressures{RESET}".ljust(47 + len(CYAN) + len(RESET)) + " │")
-            print(" │ " + f"  FL: {avg_p_fl:<10} | FR: {avg_p_fr}".ljust(47) + " │")
-            print(" │ " + f"  RL: {avg_p_rl:<10} | RR: {avg_p_rr}".ljust(47) + " │")
+            print(" │ " + f"{CYAN}Average Tire Pressures{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
+            print(" │ " + f"  FL: {avg_p_fl:<10} | FR: {avg_p_fr}".ljust(96) + " │")
+            print(" │ " + f"  RL: {avg_p_rl:<10} | RR: {avg_p_rr}".ljust(96) + " │")
             print(" └" + "─" * 49 + "┘")
 
             # 2. Detailed Stint & Correlation (Merging old logic)
@@ -152,9 +153,9 @@ def run_tire_fuel_windows(sessions):
                 final_corner_readout.append(readout)
 
             print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + "[ STINT OVERVIEW ]".ljust(47) + " │")
-            print(" │ " + f"Valid Laps: {len(stint_data)}".ljust(47) + " │")
-            print(" │ " + f"Avg Fuel Use Per Lap: {avg_fuel_per_lap:.2f} L".ljust(47) + " │")
+            print(" │ " + "[ STINT OVERVIEW ]".ljust(96) + " │")
+            print(" │ " + f"Valid Laps: {len(stint_data)}".ljust(96) + " │")
+            print(" │ " + f"Avg Fuel Use Per Lap: {avg_fuel_per_lap:.2f} L".ljust(96) + " │")
             print(" └" + "─" * 49 + "┘")
 
             # 3. Side-by-Side Table Layout

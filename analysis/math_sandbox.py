@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -168,7 +169,15 @@ def run_custom_math_graph(sessions):
                     else:
                         import matplotx
                         plt.style.use(matplotx.styles.aura['dark'])
-                        plt.rcParams['font.family'] = 'Consolas'
+                        plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                         fig = plt.figure(figsize=(12, 7), num='OpenDAV - Custom Sandbox Graph')
     
                         plt.plot(x_data, y_data, color='cyan', linewidth=2, label='Custom Math')

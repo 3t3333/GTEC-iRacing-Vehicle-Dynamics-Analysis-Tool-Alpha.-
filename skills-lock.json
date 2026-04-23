@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "debugging-strategies": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "4946473a374cc2caf51871e51e40051025703517bb578ce9b01b6cadf72a0c0e"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "matplotlib": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "5049b58b88810aa7f59713564ccf612b6c17db82ddfd709ccd0b1799a6698fe6"
+    }
+  }
+}

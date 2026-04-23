@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -239,7 +240,15 @@ def run_suspension_histograms(sessions):
                     # Matplotlib / CTK
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig, axs = plt.subplots(2, 2, figsize=(14, 9), num='OpenDAV - Suspension Histograms')
                     plt.suptitle(title_plt, fontsize=16, fontweight='bold')
                     

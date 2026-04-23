@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -85,9 +86,9 @@ def run_setup_prediction_engine(sessions):
             RESET = "\033[0m"
 
             print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + "[ Baseline Roll Stiffness ]".ljust(47) + " │")
-            print(" │ " + f"{CYAN}Front Roll:{RESET} {abs(baseline_front_m):.3f} mm/G ({baseline_front_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
-            print(" │ " + f"{CYAN}Rear Roll:{RESET}  {abs(baseline_rear_m):.3f} mm/G ({baseline_rear_dist:.1f}%)".ljust(47 + len(CYAN) + len(RESET)) + " │")
+            print(" │ " + "[ Baseline Roll Stiffness ]".ljust(96) + " │")
+            print(" │ " + f"{CYAN}Front Roll:{RESET} {abs(baseline_front_m):.3f} mm/G ({baseline_front_dist:.1f}%)".ljust(96 + len(CYAN) + len(RESET)) + " │")
+            print(" │ " + f"{CYAN}Rear Roll:{RESET}  {abs(baseline_rear_m):.3f} mm/G ({baseline_rear_dist:.1f}%)".ljust(96 + len(CYAN) + len(RESET)) + " │")
             print(" └" + "─" * 49 + "┘")
             
             print("\n  Enter setup change (e.g., 'farb +10%' or 'rarb -5%')")
@@ -152,10 +153,10 @@ def run_setup_prediction_engine(sessions):
             load_msg = f"Est. Outside Tire Load Change: {load_shift_pct:+.1f}%"
 
             print("\n ┌" + "─" * 49 + "┐")
-            print(" │ " + "[ PREDICTION RESULTS ]".ljust(47) + " │")
-            print(" │ " + f"{axle_name} Roll Gradient: {abs(old_m):.3f} -> {PINK}{abs(new_m):.3f} mm/G{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
-            print(" │ " + f"New Roll Balance: Front {new_front_dist:.1f}% | Rear {new_rear_dist:.1f}%".ljust(47) + " │")
-            print(" │ " + load_msg.ljust(47) + " │")
+            print(" │ " + "[ PREDICTION RESULTS ]".ljust(96) + " │")
+            print(" │ " + f"{axle_name} Roll Gradient: {abs(old_m):.3f} -> {PINK}{abs(new_m):.3f} mm/G{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
+            print(" │ " + f"New Roll Balance: Front {new_front_dist:.1f}% | Rear {new_rear_dist:.1f}%".ljust(96) + " │")
+            print(" │ " + load_msg.ljust(96) + " │")
             print(" └" + "─" * 49 + "┘")
 
             # Sector visualization
@@ -250,7 +251,15 @@ def run_setup_prediction_engine(sessions):
                 else:
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig = plt.figure(figsize=(12, 7), num='OpenDAV - Setup Prediction Engine')
 
                     plt.plot(x_data, actual_roll, color='cyan', linewidth=2, label='Actual Roll')

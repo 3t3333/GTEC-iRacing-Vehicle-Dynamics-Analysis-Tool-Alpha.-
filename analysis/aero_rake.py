@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -172,10 +173,18 @@ def run_rake_analysis(sessions, headless=False, headless_config=None):
                     print("  [+] Building Rake Analysis Graph...")
                     import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
-                    plt.rcParams['font.family'] = 'Consolas'
+                    plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                     fig = plt.figure(figsize=(12, 7), num='OpenDAV - Dynamic Rake Analyzer')
     
-                    plt.scatter(straight_speed, straight_rake, alpha=0.4, label='Telemetry Data', color='cyan', s=4)
+                    plt.scatter(straight_speed, straight_rake, alpha=0.4, label='Telemetry Data', color='cyan', s=4, rasterized=True)
                     x_vals_line = np.array([min(straight_speed), max(straight_speed)])
                     y_vals_line = rake_m * x_vals_line + rake_c
                     plt.plot(x_vals_line, y_vals_line, color='deeppink', linewidth=2, label=f'Trend: {rake_m:+.4f} mm/mph')
@@ -278,7 +287,7 @@ def run_rake_analysis(sessions, headless=False, headless_config=None):
                         (ax1, straight_speed, straight_rake, rake_m, rake_c, "PRIMARY", f"Laps: {len(np.unique(data[channels['lap']].data[mask]))} | Pts: {len(straight_speed)}\n{file_basename}"),
                         (ax2, r_s_speed, r_s_rake, r_m, r_c, "REFERENCE", f"Laps: {len(np.unique(r_data[r_channels['lap']].data[r_mask]))} | Pts: {len(r_s_speed)}\n{delta_title}")
                     ]:
-                        ax.scatter(spd, rk, alpha=0.3, color='cyan', s=3)
+                        ax.scatter(spd, rk, alpha=0.3, color='cyan', s=3, rasterized=True)
                         xv = np.array([min(spd), max(spd)])
                         ax.plot(xv, m*xv+c, color='deeppink', lw=3, label=f'Trend: {m:+.4f} mm/mph')
                         ax.set_title(f"{tit}\n{subt}", fontsize=11)

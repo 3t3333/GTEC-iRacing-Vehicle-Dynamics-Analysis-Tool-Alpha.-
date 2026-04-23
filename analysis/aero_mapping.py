@@ -132,8 +132,8 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             
             print("\n  ┌" + "─" * 98 + "┐")
             print("  │ " + "[ EMPIRICAL AERO BALANCE ]".ljust(92) + " │")
-            print("  │ " + f"Average High-Speed AB: {CYAN}{median_ab:.1f}% Front{RESET}".ljust(47 + len(CYAN) + len(RESET)) + " │")
-            print("  │ " + f"Peak Pitch AB (Braking): {PINK}{max_ab:.1f}% Front{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
+            print("  │ " + f"Average High-Speed AB: {CYAN}{median_ab:.1f}% Front{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
+            print("  │ " + f"Peak Pitch AB (Braking): {PINK}{max_ab:.1f}% Front{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
             print("  │ " + f"Minimum AB (Accel):      {min_ab:.1f}% Front".ljust(92) + " │")
             print("  └" + "─" * 98 + "┘")
 
@@ -225,7 +225,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     threshold = max(max(f_sim) - min(f_sim), max(r_sim) - min(r_sim)) * 0.05
                     triang.set_mask(distances > threshold)
 
-                    ax3d.scatter(f_sim, r_sim, z_sim, c=z_sim, cmap=opendav_cmap, s=5, alpha=0.8, edgecolors='none')
+                    ax3d.scatter(f_sim, r_sim, z_sim, c=z_sim, cmap=opendav_cmap, s=5, alpha=0.8, edgecolors='none', rasterized=True)
                     ax3d.set_title("3D Aero Balance Platform", fontsize=14, pad=20)
                     ax3d.set_xlabel("Front RH (mm)")
                     ax3d.set_ylabel("Rear RH (mm)")
@@ -237,7 +237,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     cf = ax2d.tricontourf(triang, z_sim, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
                     lines = ax2d.tricontour(triang, z_sim, levels=10, colors='white', linewidths=0.5, alpha=0.3)
                     ax2d.clabel(lines, inline=True, fontsize=8, fmt='%.1f%%')
-                    ax2d.scatter(f_sim, r_sim, c='white', s=2, alpha=0.2)
+                    ax2d.scatter(f_sim, r_sim, c='white', s=2, alpha=0.2, rasterized=True)
                     ax2d.set_title("2D Platform Topography", fontsize=14, pad=20)
                     ax2d.set_xlabel("Front Ride Height (mm)")
                     ax2d.set_ylabel("Rear Ride Height (mm)")
@@ -286,9 +286,9 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             levels = np.linspace(0, 100, 20) if '%' == '%' else 20
                             contourf = plt.tricontourf(triang, z_s, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
                             lines = plt.tricontour(triang, z_s, levels=10, cmap=opendav_cmap, linewidths=1.5, alpha=0.8)
-                            plt.clabel(lines, inline=True, fontsize=9, fmt='%.1f%', colors='white')
+                            plt.clabel(lines, inline=True, fontsize=9, fmt='%.1f%%', colors='white')
                             plt.colorbar(contourf, label='AB (%)' if '%' == '%' else 'AB')
-                            plt.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2)
+                            plt.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2, rasterized=True)
                             ax = plt.gca()
                             
                             # Enable Z-value coordinate display
@@ -545,8 +545,8 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         levels = np.linspace(0, 100, 20) if '%' == '%' else 20
                         cf = ax.tricontourf(triang, z_s, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
                         lines = ax.tricontour(triang, z_s, levels=10, cmap=opendav_cmap, linewidths=1.5, alpha=0.8)
-                        ax.clabel(lines, inline=True, fontsize=9, fmt='%.1f%', colors='white')
-                        ax.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2)
+                        ax.clabel(lines, inline=True, fontsize=9, fmt='%.1f%%', colors='white')
+                        ax.scatter(f_s, r_s, c='white', s=3, alpha=0.4, edgecolors='black', linewidths=0.2, rasterized=True)
                         
                         # Enable Z-value coordinate display
                         lookup_tree = cKDTree(np.column_stack((f_s, r_s)))
@@ -559,6 +559,11 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         ax.xaxis.set_major_locator(ticker.MultipleLocator(20))
                         ax.yaxis.set_major_locator(ticker.MultipleLocator(20))
                         ax.grid(True, which='both', linestyle='--', alpha=0.1, color='white')
+                        
+                        full_title = f"{title}\n{subtitle}" if subtitle else title
+                        ax.set_title(full_title, fontsize=12, pad=15)
+                        ax.set_xlabel("Front Ride Height (mm)", fontsize=11)
+                        ax.set_ylabel("Rear Ride Height (mm)", fontsize=11)
                         
                         return cf
                         

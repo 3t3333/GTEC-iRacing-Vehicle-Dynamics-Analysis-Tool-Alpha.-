@@ -1,6 +1,7 @@
 import os
 import sys
 import numpy as np
+from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -213,9 +214,9 @@ def run_sector_tire_analysis(sessions):
             PINK = '\033[95m'
             RESET = '\033[0m'
             print(" ┌" + "─" * 49 + "┐")
-            print(" │ " + f"[ {scope_text} PERFORMANCE ]".ljust(47) + " │")
-            print(" │ " + f"Analyzed {len(lap_metrics)} valid laps.".ljust(47) + " │")
-            print(" │ " + f"Calculated Optimal Temp: {PINK}{optimal_temp:.1f} °C{RESET}".ljust(47 + len(PINK) + len(RESET)) + " │")
+            print(" │ " + f"[ {scope_text} PERFORMANCE ]".ljust(96) + " │")
+            print(" │ " + f"Analyzed {len(lap_metrics)} valid laps.".ljust(96) + " │")
+            print(" │ " + f"Calculated Optimal Temp: {PINK}{optimal_temp:.1f} °C{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
             print(" └" + "─" * 49 + "┘")
             
             md = session.get('metadata', {})
@@ -278,9 +279,17 @@ def run_sector_tire_analysis(sessions):
                         else:
                             import matplotx
                             plt.style.use(matplotx.styles.aura['dark'])
-                            plt.rcParams['font.family'] = 'Consolas'
+                            plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                             fig = plt.figure(figsize=(12, 7), num='OpenDAV - Sector Tire Analysis')
-                            plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data')
+                            plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data', rasterized=True)
                             plt.plot(t_curve, time_curve, color='deeppink', linestyle='--', linewidth=2, label='Performance Trend')
                             plt.axvline(x=optimal_temp, color='gold', linestyle='-', linewidth=2, label=f'Calculated Optimal ({optimal_temp:.1f}°C)')
                             plt.title(f"Tire Temperature vs Lap Time\n{title_scope}\n{file_basename}", fontsize=16, fontweight='bold', pad=20)
@@ -315,9 +324,17 @@ def run_sector_tire_analysis(sessions):
                         
                         import matplotx
                         plt.style.use(matplotx.styles.aura['dark'])
-                        plt.rcParams['font.family'] = 'Consolas'
+                        plt.rcParams.update({
+                        'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
+                        'figure.dpi': 144,  # High-DPI Retina rendering
+                        'axes.linewidth': 1.2,
+                        'grid.alpha': 0.15,
+                        'xtick.direction': 'in',
+                        'ytick.direction': 'in',
+                        'scatter.edgecolors': 'none'
+                    })
                         fig = plt.figure(figsize=(12, 7))
-                        plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data')
+                        plt.scatter(temps, times, alpha=0.8, color='cyan', s=40, label='Lap Data', rasterized=True)
                         plt.plot(t_curve, time_curve, color='deeppink', linestyle='--', linewidth=2, label='Performance Trend')
                         plt.axvline(x=optimal_temp, color='gold', linestyle='-', linewidth=2, label=f'Calculated Optimal ({optimal_temp:.1f}°C)')
                         plt.title(f"Tire Temperature vs Lap Time\n{title_scope}\n{file_basename}", fontsize=16, fontweight='bold', pad=20)
