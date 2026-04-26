@@ -156,6 +156,20 @@ if __name__ == "__main__":
             subprocess.check_call([sys.executable, "-m", "pip", "install", "customtkinter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             import customtkinter as ctk
 
+    # Check prompt_toolkit (for TUI)
+    for _ in range(5): update_screen("Checking dependency: prompt_toolkit...")
+    try:
+        import prompt_toolkit
+    except ImportError:
+        if is_frozen:
+            update_screen("Error: prompt_toolkit missing from bundle!")
+            fatal_error = True
+            time.sleep(2)
+        else:
+            update_screen("Patching: installing prompt_toolkit...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "prompt_toolkit"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            import prompt_toolkit
+
     # Check ldparser
     for _ in range(5): update_screen("Checking directory: ldparser...")
     if is_frozen:
@@ -182,7 +196,7 @@ if __name__ == "__main__":
         print("\n[!] FATAL ERROR: Required dependencies are missing from the executable.")
         print("    PyInstaller can only bundle packages installed in the environment")
         print("    where it is run. Please run the following command in Windows cmd:")
-        print("    pip install numpy pandas scipy matplotlib matplotx plotly customtkinter")
+        print("    pip install numpy pandas scipy matplotlib matplotx plotly customtkinter prompt_toolkit")
         print("    Then rebuild the EXE.")
         input("\nPress Enter to exit...")
         sys.exit(1)
@@ -220,6 +234,9 @@ from analysis.tire_energy import run_tire_energy_profiler
 from analysis.suspension_histograms import run_suspension_histograms
 
 def main():
+    from ui.tui_engine import get_tui_choice
+    from ui.tui_multi import get_multi_lap_choice
+    from ui.tui_sector import get_sector_choice
     telemetry_dir = "telemetry"
     
     while True:
@@ -319,9 +336,13 @@ def main():
         ld_files = [item[1] for item in temp_files_info]
         file_infos = [item[2] for item in temp_files_info]
 
-        splash.show_home_screen()
-        
-        session_choice = input("\nSelect option (number) or 'q' to quit: ").strip().lower()
+        main_menu = [
+            (1, "Analyze Telemetry File", "Manual sandbox exploration"),
+            (2, "Automation & SimGit Projects", "Enterprise team workflows"),
+            (3, "Help / About", "Usage guides and documentation"),
+            (4, "Settings", "GUI modes and Cloud configuration")
+        ]
+        session_choice = get_tui_choice(main_menu)
         if session_choice == 'q':
             splash.show_exit_screen()
             return
@@ -348,27 +369,30 @@ def main():
         selected_files = []
         go_back = False
         
-        splash.print_header("Telemetry Archive")
+        # Group metadata by file for a cleaner menu
+        archive_menu = []
         for i, info in enumerate(file_infos):
-            print(f"  {i + 1}. {info}")
-        print("─" * 100)
-        while True:
-            choice = input("\nSelect a file to analyze (number), 'p' for previous menu, or 'q' to quit: ").strip().lower()
-            if choice == 'q':
-                splash.show_exit_screen()
-                sys.exit(0)
-            if choice == 'p':
-                go_back = True
-                break
+            # Extract main name and subtitle from the existing info string
+            parts = info.split('(')
+            main_name = parts[0].strip()
+            sub_info = "(" + parts[1] if len(parts) > 1 else ""
+            archive_menu.append((i+1, main_name, sub_info))
+            
+        archive_menu.append(('p', "Back", "Return to main menu"))
+        
+        session_choice = get_tui_choice(archive_menu)
+        
+        if session_choice == 'q':
+            splash.show_exit_screen()
+            sys.exit(0)
+        if session_choice == 'p':
+            go_back = True
+        else:
             try:
-                choice_idx = int(choice) - 1
-                if 0 <= choice_idx < len(ld_files):
-                    selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
-                    break
-                else:
-                    print("[!] Invalid selection.")
-            except ValueError:
-                print("[!] Please enter a valid number.")
+                choice_idx = int(session_choice) - 1
+                selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
+            except (ValueError, IndexError):
+                go_back = True
 
         if go_back:
             continue
@@ -377,13 +401,81 @@ def main():
         sessions = []
         for file_path in selected_files:
             data, limit, channels, metadata = load_telemetry(file_path)
+            
+            # --- LAP BROWSER INJECTION ---
+            lap_data = metadata.get('lap_browser_data', [])
+            selected_laps = []
+            if lap_data:
+                car = metadata.get('car', 'Unknown Car')
+                venue = metadata.get('venue', 'Unknown Venue')
+                laps_to_analyze = get_multi_lap_choice(lap_data, f"[ SESSION BROWSER ] : {car} @ {venue}", f"File: {os.path.basename(file_path)}")
+                
+                if not laps_to_analyze:
+                    # User quit or selected nothing
+                    continue
+                    
+                selected_laps = [l['lap_num'] for l in laps_to_analyze]
+                
+                # --- SECTOR SLIDER INJECTION ---
+                # We need to know the max distance of the lap.
+                # Assuming all laps are roughly the same, we'll take the median lap length.
+                import yaml
+                sectors_pct = []
+                try:
+                    yaml_str = metadata.get('session_info_yaml', '')
+                    if yaml_str:
+                        parsed = yaml.safe_load(yaml_str)
+                        if 'SplitTimeInfo' in parsed and 'Sectors' in parsed['SplitTimeInfo']:
+                            sectors_pct = [s.get('SectorStartPct', 0.0) for s in parsed['SplitTimeInfo']['Sectors']]
+                except Exception:
+                    pass
+                
+                # Default to thirds if none found
+                if not sectors_pct:
+                    sectors_pct = [0.0, 0.333, 0.666]
+                
+                dist_ch = channels.get('dist')
+                lap_ch = channels.get('lap')
+                max_dist = 0
+                if dist_ch and lap_ch and dist_ch in data and lap_ch in data:
+                    lap_arr = data[lap_ch].data
+                    dist_arr = data[dist_ch].data
+                    
+                    lap_distances = []
+                    for l in selected_laps:
+                        idx = np.where(lap_arr == l)[0]
+                        if len(idx) > 0:
+                            lap_distances.append(np.max(dist_arr[idx]) - np.min(dist_arr[idx]))
+                    
+                    if lap_distances:
+                        max_dist = np.median(lap_distances)
+                
+                distance_bounds = None
+                if max_dist > 0:
+                    bounds = get_sector_choice(max_dist, sectors_pct)
+                    if bounds: # If not None (user didn't quit)
+                        # Ensure we don't just return (0.0, max_dist) if it's the whole lap, 
+                        # actually it's fine, the mask will just include everything
+                        distance_bounds = bounds
+                
+
+                
+                # If the user selected specific laps, we need to filter the raw data payload!
+                # Actually, our Analysis modules (like Aero Mapping) just grab lap_arr = data['Lap'].data
+                # And process it. We can simply pass the selected laps into the session object!
+            
             sessions.append({
                 'data': data,
                 'limit': limit,
                 'channels': channels,
                 'metadata': metadata,
-                'file_path': file_path
+                'file_path': file_path,
+                'selected_laps': selected_laps,
+                'distance_bounds': distance_bounds
             })
+            
+        if not sessions:
+            continue
         
         while True:
             splash.print_header("Analysis Tools", path="Sandbox")
@@ -404,15 +496,12 @@ def main():
                 (8, "Downforce Mapping", "Total Load & Aero Efficiency"),
                 (9, "Pitch & Platform", "Braking dive and squat stiffness"),
                 (10, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
-                (11, "TLLTD Distribution", "Lateral load transfer distribution")
+                (11, "TLLTD Distribution", "Lateral load transfer distribution"),
+                ('p', "Back", "Return to file selection"),
+                ('q', "Quit", "Exit OpenDAV")
             ]
             
-            print("  " + "─" * 98)
-            for num, name, desc in tools:
-                print(f"    {C_ACTION}{num:2}.{OpenDAV_RESET} {name.ljust(25)} {C_INFO}>> {desc}{OpenDAV_RESET}")
-            print("  " + "─" * 98)
-
-            tool_choice = input(f"\n  Select a tool ({C_ACTION}number{OpenDAV_RESET}), '{C_ACTION}p{OpenDAV_RESET}' for Main Menu, or '{C_ACTION}q{OpenDAV_RESET}' to quit: ").strip().lower()
+            tool_choice = get_tui_choice(tools)
             if tool_choice == 'q':
                 splash.show_exit_screen()
                 return

@@ -65,32 +65,32 @@ def run_tire_analysis(sessions):
             CYAN = '\033[96m'
             RESET = '\033[0m'
             
-            print("\n ┌" + "─" * 58 + "┐")
-            print(" │ " + "[ TIRE TEMPERATURES (°C) ]".ljust(56) + " │")
+            print("\n  ┌" + "─" * 98 + "┐")
+            print("  │ " + "[ TIRE TEMPERATURES (°C) ]".ljust(96) + " │")
             
             def format_t_line(name, cmin, cmax, cavg):
-                if cmin == "N/A": return f"{name}: [MISSING]".ljust(56)
-                return f"{name}: [{cmin:>4.1f} to {cmax:>4.1f}]  Avg: {CYAN}{cavg:.1f}{RESET}".ljust(56 + len(CYAN) + len(RESET))
+                if cmin == "N/A": return f"{name}: [MISSING]".ljust(96)
+                return f"{name}: [{cmin:>4.1f} to {cmax:>4.1f}]  Avg: {CYAN}{cavg:.1f}{RESET}".ljust(96 + len(CYAN) + len(RESET))
                 
-            print(" │ " + format_t_line("Front Left ", fl_min, fl_max, fl_avg) + " │")
-            print(" │ " + format_t_line("Front Right", fr_min, fr_max, fr_avg) + " │")
-            print(" │ " + format_t_line("Rear Left  ", rl_min, rl_max, rl_avg) + " │")
-            print(" │ " + format_t_line("Rear Right ", rr_min, rr_max, rr_avg) + " │")
-            print(" └" + "─" * 58 + "┘")
+            print("  │ " + format_t_line("Front Left ", fl_min, fl_max, fl_avg) + " │")
+            print("  │ " + format_t_line("Front Right", fr_min, fr_max, fr_avg) + " │")
+            print("  │ " + format_t_line("Rear Left  ", rl_min, rl_max, rl_avg) + " │")
+            print("  │ " + format_t_line("Rear Right ", rr_min, rr_max, rr_avg) + " │")
+            print("  └" + "─" * 98 + "┘")
 
             if fl_p_min != "N/A":
-                print(" ┌" + "─" * 58 + "┐")
-                print(" │ " + "[ TIRE PRESSURES (psi) ]".ljust(56) + " │")
+                print("  ┌" + "─" * 98 + "┐")
+                print("  │ " + "[ TIRE PRESSURES (psi) ]".ljust(96) + " │")
                 
                 def format_p_line(name, pmin, pmax, pavg):
-                    if pmin == "N/A": return f"{name}: [MISSING]".ljust(56)
-                    return f"{name}: [{pmin:>4.1f} to {pmax:>4.1f}]  Avg: {PINK}{pavg:.1f}{RESET}".ljust(56 + len(PINK) + len(RESET))
+                    if pmin == "N/A": return f"{name}: [MISSING]".ljust(96)
+                    return f"{name}: [{pmin:>4.1f} to {pmax:>4.1f}]  Avg: {PINK}{pavg:.1f}{RESET}".ljust(96 + len(PINK) + len(RESET))
                     
-                print(" │ " + format_p_line("Front Left ", fl_p_min, fl_p_max, fl_p_avg) + " │")
-                print(" │ " + format_p_line("Front Right", fr_p_min, fr_p_max, fr_p_avg) + " │")
-                print(" │ " + format_p_line("Rear Left  ", rl_p_min, rl_p_max, rl_p_avg) + " │")
-                print(" │ " + format_p_line("Rear Right ", rr_p_min, rr_p_max, rr_p_avg) + " │")
-                print(" └" + "─" * 58 + "┘")
+                print("  │ " + format_p_line("Front Left ", fl_p_min, fl_p_max, fl_p_avg) + " │")
+                print("  │ " + format_p_line("Front Right", fr_p_min, fr_p_max, fr_p_avg) + " │")
+                print("  │ " + format_p_line("Rear Left  ", rl_p_min, rl_p_max, rl_p_avg) + " │")
+                print("  │ " + format_p_line("Rear Right ", rr_p_min, rr_p_max, rr_p_avg) + " │")
+                print("  └" + "─" * 98 + "┘")
 
         print("\n" + "─"*100)
         inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
@@ -105,24 +105,15 @@ def run_sector_tire_analysis(sessions):
         print("\n  This tool analyzes how cornering tire temperatures correlate with lap times.")
         print("  It plots empirical data and mathematically estimates the optimal temperature window.")
         
-        print("\n  Enter track distance window (e.g. '140-300') or 'fl' for Full Lap.")
-        inp = input("  Window: ").strip().lower()
-        
-        if inp == 'q':
-            splash.show_exit_screen()
-            sys.exit(0)
-        if inp == 'p':
-            break
-            
-        is_full_lap = False
-        if inp == 'fl':
+        bounds = sessions[0].get('distance_bounds')
+        if bounds:
+            start_m, end_m = bounds
+            is_full_lap = False
+            print(f"\n  [*] Inherited Global Sector Range: {start_m:.0f}m to {end_m:.0f}m")
+        else:
             is_full_lap = True
             start_m, end_m = 0, 0
-        else:
-            if '-' not in inp:
-                print("  [!] Invalid format. Try 'Start-End' or 'fl'.")
-                input("\nPress Enter to return...")
-                continue
+            print("\n  [*] Inherited Full Lap (No specific sector isolated).")
                 
             try:
                 start_m, end_m = map(float, inp.split('-'))
@@ -131,7 +122,7 @@ def run_sector_tire_analysis(sessions):
                 input("\nPress Enter to return...")
                 continue
             
-        scope_text = "FULL LAP" if is_full_lap else f"SECTOR {start_m}m to {end_m}m"
+        scope_text = "FULL LAP" if is_full_lap else f"SECTOR {start_m:.0f}m to {end_m:.0f}m"
             
         for session in sessions:
             data = session['data']
@@ -213,11 +204,11 @@ def run_sector_tire_analysis(sessions):
             
             PINK = '\033[95m'
             RESET = '\033[0m'
-            print(" ┌" + "─" * 49 + "┐")
-            print(" │ " + f"[ {scope_text} PERFORMANCE ]".ljust(96) + " │")
-            print(" │ " + f"Analyzed {len(lap_metrics)} valid laps.".ljust(96) + " │")
-            print(" │ " + f"Calculated Optimal Temp: {PINK}{optimal_temp:.1f} °C{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print("  ┌" + "─" * 98 + "┐")
+            print("  │ " + f"[ {scope_text} PERFORMANCE ]".ljust(96) + " │")
+            print("  │ " + f"Analyzed {len(lap_metrics)} valid laps.".ljust(96) + " │")
+            print("  │ " + f"Calculated Optimal Temp: {PINK}{optimal_temp:.1f} °C{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
+            print("  └" + "─" * 98 + "┘")
             
             md = session.get('metadata', {})
             car_name = md.get('car', 'UNKNOWN')

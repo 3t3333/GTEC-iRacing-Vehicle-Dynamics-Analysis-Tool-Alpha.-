@@ -5,6 +5,7 @@ import time
 from core.config import (get_gui_mode, set_gui_mode, get_data_mode, set_data_mode, 
                         save_config, load_config, get_auto_import, set_auto_import)
 import ui.splash as splash
+from ui.tui_engine import get_tui_choice
 
 def show_settings():
     while True:
@@ -29,7 +30,7 @@ def show_settings():
         
         choice = input("\nSelect a setting to change, or 'b' to go back: ").strip().lower()
         
-        if choice == 'b':
+        if choice in ['b', 'p']: # Support both for settings
             break
             
         elif choice == '1':

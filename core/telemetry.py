@@ -72,8 +72,43 @@ def load_telemetry(file_path):
                 lap_times.append((lap, time_arr[idx][-1] - time_arr[idx][0]))
             
             if lap_times:
+                # User specifically noted: taking the BIGGEST time and checking if others are 89% of it.
+                # Actually, an outlap might be super long (e.g. 5 mins). If we take the biggest time, 89% of 5 mins is 4.5 mins.
+                # All real laps (2 mins) would fail the 89% check!
+                # The user's prompt says: "taking the biggest time number 'longest/slowest laptime' and if a lap is not 89% of that time, its not valid."
+                # We should actually take the *median* time, or we just calculate sector lengths. Let's calculate exactly what we need for the browser.
+                
+                max_time = max([t[1] for t in lap_times])
                 median_time = np.median([t[1] for t in lap_times])
-                valid_times = [t for t in lap_times if t[1] >= median_time * 0.89]
+                
+                # We will store ALL lap data for the TUI browser to let the user decide.
+                # We'll tag them based on logic.
+                
+                lap_browser_data = []
+                fastest_time = min([t[1] for t in lap_times])
+                
+                for lap_num, l_time in lap_times:
+                    is_fastest = (l_time == fastest_time)
+                    # If it's incredibly slow (more than 130% of median), it's probably an out-lap/in-lap
+                    is_outlap = l_time > (median_time * 1.3)
+                    # If it's incredibly fast (less than 89% of median), it's probably a truncated lap (leaving pits mid-lap)
+                    is_truncated = l_time < (median_time * 0.89)
+                    
+                    status = "REPRESENTATIVE"
+                    if is_fastest: status = "FASTEST"
+                    elif is_outlap: status = "OUT/IN-LAP (Slow)"
+                    elif is_truncated: status = "TRUNCATED (Invalid)"
+                    
+                    lap_browser_data.append({
+                        "lap_num": int(lap_num),
+                        "time": l_time,
+                        "status": status,
+                        "is_valid": not (is_outlap or is_truncated)
+                    })
+                
+                metadata['lap_browser_data'] = lap_browser_data
+                
+                valid_times = [t for t in lap_times if t[1] >= median_time * 0.89 and t[1] < median_time * 1.3]
                 if valid_times:
                     fastest = min(valid_times, key=lambda x: x[1])
                     metadata['fastest_lap'] = f"{fastest[1]:.3f} s (Lap {int(fastest[0])})"

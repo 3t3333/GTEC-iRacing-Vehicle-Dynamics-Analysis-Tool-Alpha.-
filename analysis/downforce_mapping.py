@@ -120,7 +120,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                 cl_vals = (2 * total_downforce) / (rho * (safe_v**2) * A)
                 avg_cl = np.median(cl_vals)
                 cl_line = f"Avg Est. CL (A=2.0m²): {avg_cl:.3f}"
-                cl_text = f" │ {cl_line.ljust(92)} │"
+                cl_text = f"  │ {cl_line.ljust(96)} │"
 
             # CLI Output
             raw_max_df = np.max(total_downforce)
@@ -172,12 +172,12 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             RESET = "\033[0m"
             
             print("\n  ┌" + "─" * 98 + "┐")
-            print("  │ " + "[ TOTAL DOWNFORCE (v > 100 km/h) ]".ljust(92) + " │")
+            print("  │ " + "[ TOTAL DOWNFORCE (v > 100 km/h) ]".ljust(96) + " │")
             print("  │ " + f"Max Downforce: {PINK}{max_df:.1f} N{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
             print("  │ " + f"Golden Box:    {GOLD}{gb_bottom:.1f} to {gb_top:.1f} N{RESET}".ljust(96 + len(GOLD) + len(RESET)) + " │")
             print("  │ " + f"{GOLD}{target_pose_text}{RESET}".ljust(96 + len(GOLD) + len(RESET)) + " │")
             print("  │ " + f"Avg Downforce: {CYAN}{avg_df:.1f} N{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
-            print("  │ " + f"Min Downforce: {min_df:.1f} N".ljust(92) + " │")
+            print("  │ " + f"Min Downforce: {min_df:.1f} N".ljust(96) + " │")
             if cl_text:
                 print(cl_text)
             print("  └" + "─" * 98 + "┘")

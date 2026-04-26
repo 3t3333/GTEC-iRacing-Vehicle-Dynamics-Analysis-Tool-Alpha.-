@@ -6,6 +6,7 @@ import datetime
 import yaml
 import shutil
 import ui.splash as splash
+from ui.tui_engine import get_tui_choice
 from ui.splash import C_ACTION, C_INFO, C_SUCCESS, C_WARNING, C_DANGER, C_GOLD, OpenDAV_RESET
 
 PROJECTS_DIR = "projects"
@@ -18,16 +19,14 @@ def run_project_manager():
         os.makedirs(STAGING_DIR)
         
     while True:
-        splash.print_header("SimGit Project Manager")
-        print(f"  {C_INFO}[ LOCAL WORKSPACE ]{OpenDAV_RESET}")
-        print(f"    {C_ACTION}1.{OpenDAV_RESET} Create New Project Repo")
-        print(f"    {C_ACTION}2.{OpenDAV_RESET} Open Existing Repository")
-        print(f"    {C_ACTION}3.{OpenDAV_RESET} Global Workbook Management")
-        print(f"\n  {C_INFO}[ TEAM SYNC ]{OpenDAV_RESET}")
-        print(f"    {C_ACTION}4.{OpenDAV_RESET} Browse & Pull from Cloud")
-        print("  " + "─" * 98)
-        
-        choice = input(f"\n  Select an option ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' to go back: ").strip().lower()
+        menu = [
+            (1, "Create New Project Repo", "Initialize a new SimGit repository"),
+            (2, "Open Existing Repository", "Manage and analyze tracked setups"),
+            (3, "Global Workbook Management", "Edit automated analysis sequences"),
+            (4, "Browse & Pull from Cloud", "Sync team projects from Supabase"),
+            ('p', "Back", "Return to main menu")
+        ]
+        choice = get_tui_choice(menu)
         
         if choice == 'p': break
         elif choice == '1': create_project()
@@ -85,15 +84,9 @@ def list_projects():
         return
         
     while True:
-        splash.print_header("Select Project Repository")
-        print(f"    {'ID':3} | {'REPOSITORY NAME':40}")
-        print(f"    {'─'*3}─┼─{'─'*40}")
-        for i, p in enumerate(projects):
-            print(f"    {C_ACTION}{i+1:2}.{OpenDAV_RESET} | {C_GOLD}{p.ljust(40)}{OpenDAV_RESET}")
-        
-        print("  " + "─" * 98)
-        
-        choice = input(f"\n  Selection ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' to go back: ").strip().lower()
+        menu = [(i+1, p, "Open project workspace") for i, p in enumerate(projects)]
+        menu.append(('p', "Back", "Return to project manager"))
+        choice = get_tui_choice(menu)
         if choice == 'p': break
         try:
             idx = int(choice) - 1
@@ -140,7 +133,17 @@ def manage_project(name):
         print(f"    {C_ACTION}7.{OpenDAV_RESET} Push to Team Cloud (Supabase)")
         print("  " + "─" * 98)
         
-        choice = input(f"\n  Selection ({C_ACTION}number{OpenDAV_RESET}), or '{C_ACTION}p{OpenDAV_RESET}' for Repositories: ").strip().lower()
+        menu = [
+            (1, "Commit New Files", "Link staged telemetry to baseline"),
+            (2, "Individual Analysis", "Run math tools on specific files"),
+            (3, "Run Automated Workbook", "Batch process all tracked telemetry"),
+            (4, "View Setup Timeline", "Review setup changes over time"),
+            (5, "Install to iRacing", "Export setup to sim folder"),
+            (6, "Change Baseline File", "Switch active setup context"),
+            (7, "Push to Team Cloud", "Upload project to Supabase"),
+            ('p', "Back", "Return to project list")
+        ]
+        choice = get_tui_choice(menu)
         if choice == 'p': break
         
         if choice == '1': commit_files(name, path, state)
