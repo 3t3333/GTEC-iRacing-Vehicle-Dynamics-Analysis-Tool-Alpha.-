@@ -49,8 +49,6 @@ OpenDAV features a built-in version control system for race engineering.
   <br><em>Fig 3: Granular sector-by-sector load distribution.</em>
 </div>
 
-### Proprietary Setup Parsing
-OpenDAV includes a custom, standalone C# decryption engine capable of parsing proprietary iRacing `.sto` binaries offline. It bypasses internal AES-256-CBC encryption to extract the raw C++ physics struct, automatically feeding exact spring rates and vehicle constraints directly into the SimGit Aero model.
 
 ---
 
@@ -59,7 +57,6 @@ OpenDAV includes a custom, standalone C# decryption engine capable of parsing pr
 *   **GUI / TUI:** Prompt-Toolkit (Terminal)
 *   **Math Engine:** NumPy, SciPy (RBF Interpolation, Convex Hulls, cKDTrees)
 *   **Rendering:** Matplotlib (with custom Matplotx Aura Dark styling), Plotly
-*   **Crypto Engine:** C# / .NET 8.0 (Offline STO parser)
 
 ## Installation & Usage
 
