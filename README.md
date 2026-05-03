@@ -56,7 +56,7 @@ OpenDAV includes a custom, standalone C# decryption engine capable of parsing pr
 
 ## Technical Architecture
 *   **Core:** Python 3.10+
-*   **GUI / TUI:** Prompt-Toolkit (Terminal), CustomTkinter (Dashboard)
+*   **GUI / TUI:** Prompt-Toolkit (Terminal)
 *   **Math Engine:** NumPy, SciPy (RBF Interpolation, Convex Hulls, cKDTrees)
 *   **Rendering:** Matplotlib (with custom Matplotx Aura Dark styling), Plotly
 *   **Crypto Engine:** C# / .NET 8.0 (Offline STO parser)
