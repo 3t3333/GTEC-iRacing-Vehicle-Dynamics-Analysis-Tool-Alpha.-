@@ -9,6 +9,17 @@ env/
 venv/
 pip-log.txt
 pip-delete-this-directory.txt
+run_aero_test.py
+car_specs.json
+fix_aero_input.py
+fix_aero_naming.py
+fix_startup_crash.py
+get_file_idx.py
+patch_aero_l3.py
+patch_tire_l4.py
+skills-lock.json
+workboos.json
+.agents/skills/
 
 # --- Research & Temporary Scripts ---
 # Ignore all root-level python, C#, and other script fragments
