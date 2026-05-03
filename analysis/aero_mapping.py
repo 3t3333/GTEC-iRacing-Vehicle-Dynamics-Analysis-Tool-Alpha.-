@@ -405,39 +405,17 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             print(f"  [!] Error loading reference file: {e}")
                             break
                     else:
-                        telemetry_dir = "telemetry"
-                        if not os.path.exists(telemetry_dir):
-                            print(f"  [!] Directory '{telemetry_dir}' not found.")
+                        from ui.tui_ref_selector import select_reference_file
+                        result = select_reference_file(file_path)
+                        if not result or result[0] is None:
                             continue
-                            
-                        ld_files = [f for f in os.listdir(telemetry_dir) if f.lower().endswith(('.ld', '.ibt'))]
-                        ld_files.sort()
                         
-                        if not ld_files:
-                            print("  [!] No files found in telemetry directory.")
-                            continue
-                            
-                        print("\n  Select Reference File:")
-                        for i, lf in enumerate(ld_files):
-                            print(f"    {i+1}. {lf}")
-                        print("  ─" * 20)
-                        ref_choice = input("  Selection (number): ").strip()
-                        try:
-                            ref_idx = int(ref_choice) - 1
-                            if not (0 <= ref_idx < len(ld_files)):
-                                raise ValueError()
-                        except ValueError:
-                            print("  [!] Invalid selection.")
-                            continue
-                            
-                        ref_path = os.path.join(telemetry_dir, ld_files[ref_idx])
-                        print(f"  [*] Loading Reference: {os.path.basename(ref_path)}")
+                        ref_path, ref_laps, ref_data, ref_channels, ref_metadata = result
                         
-                        try:
-                            ref_data, _, ref_channels, ref_metadata = load_telemetry(ref_path)
-                        except Exception as e:
-                            print(f"  [!] Error loading reference file: {e}")
-                            continue
+                        if ref_laps and 'Lap' in ref_data:
+                            ref_metadata['selected_laps'] = ref_laps
+                        
+                        print(f"  [*] Loaded Reference: {os.path.basename(ref_path)}")
                         
                     # Process Reference File
                     r_lat_g_ch = ref_channels.get('lat')
@@ -482,6 +460,36 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         r_s_rr = r_s_rl
                         
                     r_aero_mask = (r_speed > 80)
+                    
+                    # Apply Reference Lap Mask
+                    r_lap_ch = ref_channels.get('lap')
+                    if r_lap_ch and r_lap_ch in ref_data and 'selected_laps' in ref_metadata:
+                        lap_filter = np.isin(ref_data[r_lap_ch].data, ref_metadata['selected_laps'])
+                        r_aero_mask = r_aero_mask & lap_filter
+                        
+                    # Apply the GLOBAL Sector Slider Distance Mask (from the Primary session)
+                    bounds = session.get('distance_bounds')
+                    r_dist_ch = ref_channels.get('dist')
+                    if bounds and r_dist_ch and r_dist_ch in ref_data:
+                        r_dist_arr = ref_data[r_dist_ch].data
+                        dist_filter = (r_dist_arr >= bounds[0]) & (r_dist_arr <= bounds[1])
+                        r_aero_mask = r_aero_mask & dist_filter
+
+                    
+                    # Apply Reference Lap Mask
+                    r_lap_ch = ref_channels.get('lap')
+                    if r_lap_ch and r_lap_ch in ref_data and 'selected_laps' in ref_metadata:
+                        lap_filter = np.isin(ref_data[r_lap_ch].data, ref_metadata['selected_laps'])
+                        r_aero_mask = r_aero_mask & lap_filter
+                        
+                    # Apply the GLOBAL Sector Slider Distance Mask (from the Primary session)
+                    bounds = session.get('distance_bounds')
+                    r_dist_ch = ref_channels.get('dist')
+                    if bounds and r_dist_ch and r_dist_ch in ref_data:
+                        r_dist_arr = ref_data[r_dist_ch].data
+                        dist_filter = (r_dist_arr >= bounds[0]) & (r_dist_arr <= bounds[1])
+                        r_aero_mask = r_aero_mask & dist_filter
+
                     r_f_rh = ((r_fl_rh + r_fr_rh) / 2.0)[r_aero_mask]
                     r_r_rh = ((r_rl_rh + r_rr_rh) / 2.0)[r_aero_mask]
                     
@@ -644,12 +652,29 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     spd_s = spd_arr[sort_idx]
                     rake_s = r_rh_s - f_rh_s
                     
-                    print(f"  [+] Target CoG (Center of Gravity) defaults to 45.0%.")
-                    target_ab_input = "" if headless else input("      Enter Target Aero Balance % (or press Enter for 45.0): ").strip()
+                    
+                    target_ab = None
                     try:
-                        target_ab = float(target_ab_input) if target_ab_input else 45.0
-                    except ValueError:
-                        target_ab = 45.0
+                        # Try to parse target AB from the YAML header first!
+                        yaml_str = session.get('metadata', {}).get('session_info_yaml', '')
+                        if yaml_str:
+                            import yaml
+                            parsed = yaml.safe_load(yaml_str)
+                            if 'AeroBalanceCalc' in parsed:
+                                ab_str = parsed['AeroBalanceCalc'].get('FrontDownforce', '')
+                                if ab_str:
+                                    target_ab = float(str(ab_str).replace('%', '').strip())
+                                    print(f"  [+] Extracted Target Aero Balance from YAML: {target_ab}%")
+                    except Exception:
+                        pass
+                    
+                    if target_ab is None:
+                        print(f"  [+] Target CoG (Center of Gravity) not found in YAML. Defaulting to 45.0%.")
+                        target_ab_input = "" if headless else input("      Enter Target Aero Balance % (or press Enter for 45.0): ").strip()
+                        try:
+                            target_ab = float(target_ab_input) if target_ab_input else 45.0
+                        except ValueError:
+                            target_ab = 45.0
                     
                     print("  [+] Building Target Delta Analyzer Graph (L3)...")
                     import matplotx

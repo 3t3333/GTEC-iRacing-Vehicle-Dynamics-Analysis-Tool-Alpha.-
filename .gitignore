@@ -1,134 +1,91 @@
+# --- Python / Environment ---
 .venv/
 __pycache__/
 *.pyc
-telemetry/
-build/
-dist/
-*.spec
-gtec_config.json
-.DS_Store
-ldparser/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Agent Workflow & Onboarding Files
-architecture_tree.txt
-splash.txt
-GMPrompt.txt
-uiformatting.txt
-uiformat.txt
-tyre_loadfeature_documentation.txt
-LEAD_ARCHITECT_DIRECTIVE.txt
-NEW_AGENT_ONBOARDING.txt
-Agent_action_log.txt
-URGENT_ARCHITECTURE_NOTICE.txt
-webmaster_report.txt
-vault/
+# --- Research & Temporary Scripts ---
+# Ignore all root-level python, C#, and other script fragments
+/*.py
+/*.cs
+# Explicitly allow the main CLI entry point
+!/opendav.py
 
-#extra
-opendav_config.json
-.opendav_auth
-# local repos
+# Ignore specific research scripts in subdirectories
+analysis/hunt_wing.py
+analysis/scan_tsr.py
+analysis/test_dna_match.py
+analysis/test_final_parser.py
+analysis/test_tsr_xtea.py
+ui/tui_ref_selector.py
+
+# --- Binary Telemetry & Data (Large Files) ---
 telemetry/
 projects/
-exports/
 globaltelemetryreferences/
+secret/
+*.sto
+*.ibt
+*.bin
+*.dic
+*.decrypted.*
+*.rar
+*.zip
+*.7z
 
-# -- builds -- 
+# --- Build & Distribution ---
 build/
 dist/
+bin/
+obj/
 *.exe
-# -- Workspace Misc -- 
+*.dll
+*.spec
+*.so
+Releases/
+*.sln
+*.csproj
+test_csharp/
+
+# --- Workspace & Development Misc ---
 website/
 vercel_deploy/
 webanalysisfeature/
 images/
-Releases/
-
-
-# Website Previews
-website_preview.html
-
-# patches and tests
-
-test_docked.py
-test_gtec.py
-test_hull.py
-test_hull_plot.py
-test_imshow_nan.py
-test_kdtree.py
-test_matplotx2.py
-test_matplotx.py
-test_metadata.py
-test_metadata2.py
-test_pkg.py
-test_triang2.py
-test_triangulation.py
-update_html.py
-update_nav.py
-update_website_contact.py
-check_ibt_sectors.py
-check_ibt_sectors2.py
-check_ibtsectors2.py
-check_ibt_sectors3.py
-corner_test.py
-gtec_config.json
-GTEC_Vehicle_Dynamics_Guide.pdf
-opendav.spec
-gtec
-Agent_action_log.txt
-GTEC_Aero_Mathematics_Guide.pdf
-uiformat.txt
-uiformatting.txt
-Downforce_Calculation_Methodology.html
-test_nan.png
-aero_balance_explained.txt
-Aero_Optimizer_Algorithm.html
-architecture_tree.txt
-telemetry/
+vault/
 exports/
-projects/
-images/
-vercel_deploy/
-Releases/
-.venv/
+ldparser/
+.agents/
+.DS_Store
+*.log
+*.txt
+*.pdf
+*.html
+*.json
+*.sql
+# Ignore all root markdown except README/GEMINI
+/*.md
+!/README.md
+!/GEMINI.md
 
+# --- Exceptions (Keep these files) ---
+!/requirements.txt
+!/car_specs.json
+!/workbooks.json
+!/.gitignore
+!/commit_helper.sh
 
+# --- Directories to Keep (Codebase) ---
+!/analysis/
+!/core/
+!/ui/
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# --- Top Secret Stuff ---
+# Ignore the entire StoParser directory so it never hits the main repo
+/StoParser/
