@@ -678,13 +678,123 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         if headless: break
 
 
-                elif ans == 'open l3':
-                    from analysis.plotly_dash import generate_monash_dashboard
-                    timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-                    export_dir = f"exports/L3_{timestamp}"
-                    os.makedirs(export_dir, exist_ok=True)
-                    generate_monash_dashboard(f_rh, r_rh, total_downforce, lat_g[aero_mask][valid_df_mask], long_g[aero_mask][valid_df_mask], data[channels['time']].data[aero_mask][valid_df_mask], file_basename, export_dir)
+                elif ans in ['open l3', 'print l3']:
+                    # Apply Sector/Lap isolation masking
+                    lat_f = lat_g[aero_mask][valid_df_mask]
+                    long_f = long_g[aero_mask][valid_df_mask]
+                    time_f = data[channels['time']].data[aero_mask][valid_df_mask]
+                    f_rh_f = f_rh
+                    r_rh_f = r_rh
+                    total_df_f = total_downforce
+
+                    if 'distance_bounds' in session and session['distance_bounds'] is not None and channels.get('dist') and channels['dist'] in data:
+                        b_min, b_max = session['distance_bounds']
+                        dist_f = data[channels['dist']].data[aero_mask][valid_df_mask]
+                        if 'selected_laps' in md and md['selected_laps'] and channels.get('lap') and channels['lap'] in data:
+                            lap_arr = data[channels['lap']].data[aero_mask][valid_df_mask]
+                            dist_mask = (dist_f >= b_min) & (dist_f <= b_max) & np.isin(lap_arr, md['selected_laps'])
+                        else:
+                            dist_mask = (dist_f >= b_min) & (dist_f <= b_max)
+                        
+                        f_rh_f = f_rh_f[dist_mask]
+                        r_rh_f = r_rh_f[dist_mask]
+                        total_df_f = total_df_f[dist_mask]
+                        lat_f = lat_f[dist_mask]
+                        long_f = long_f[dist_mask]
+                        time_f = time_f[dist_mask]
+
+                    if len(f_rh_f) < 15:
+                        print("  [!] Insufficient data points in this sector/lap to generate L3.")
+                        continue
+
+                    print("  [+] Building Static L3 Dashboard (Matplotlib)...")
+                    import matplotlib.pyplot as plt
+                    from matplotlib.gridspec import GridSpec
+                    import matplotlib.tri as mtri
+                    import matplotx
+
+                    plt.style.use(matplotx.styles.aura['dark'])
+                    fig = plt.figure(figsize=(16, 9), num='OpenDAV - L3 Dynamic Aero Dashboard')
+                    gs = GridSpec(2, 2, height_ratios=[2, 1], width_ratios=[1, 1.2], figure=fig)
+                    
+                    # 1. G-Plot (Friction Circle)
+                    ax_g = fig.add_subplot(gs[0, 0])
+                    ax_g.scatter(lat_f, long_f, c='#0ea5e9', s=8, alpha=0.4, edgecolors='none', rasterized=True)
+                    ax_g.set_title("Friction Circle (G-Plot)", fontsize=13, pad=15)
+                    ax_g.set_xlabel("Lat G")
+                    ax_g.set_ylabel("Long G")
+                    ax_g.set_xlim([-2.5, 2.5])
+                    ax_g.set_ylim([-2.5, 2.5])
+                    ax_g.axhline(0, color='white', alpha=0.1, lw=1)
+                    ax_g.axvline(0, color='white', alpha=0.1, lw=1)
+                    ax_g.set_aspect('equal', adjustable='box')
+                    ax_g.grid(True, linestyle='--', alpha=0.1)
+
+                    # 2. Aero Map Contour & RH Scatter
+                    ax_map = fig.add_subplot(gs[0, 1])
+                    
+                    # Subsample if too dense for triangulation
+                    if len(f_rh_f) > 5000:
+                        idx_sub = np.linspace(0, len(f_rh_f)-1, 5000, dtype=int)
+                        f_tri, r_tri, z_tri = f_rh_f[idx_sub], r_rh_f[idx_sub], total_df_f[idx_sub]
+                    else:
+                        f_tri, r_tri, z_tri = f_rh_f, r_rh_f, total_df_f
+                        
+                    triang = mtri.Triangulation(f_tri, r_tri)
+                    c_x = np.mean(f_tri[triang.triangles], axis=1)
+                    c_y = np.mean(r_tri[triang.triangles], axis=1)
+                    centers = np.column_stack((c_x, c_y))
+                    tree = cKDTree(np.column_stack((f_tri, r_tri)))
+                    distances, _ = tree.query(centers)
+                    threshold = max(max(f_tri) - min(f_tri), max(r_tri) - min(r_tri)) * 0.05
+                    triang.set_mask(distances > threshold)
+                    
+                    levels = np.linspace(np.min(z_tri), np.max(z_tri), 20)
+                    cf = ax_map.tricontourf(triang, z_tri, levels=levels, cmap=opendav_cmap, extend='both', alpha=0.9)
+                    lines = ax_map.tricontour(triang, z_tri, levels=10, cmap=opendav_cmap, linewidths=1.5, alpha=0.8)
+                    ax_map.clabel(lines, inline=True, fontsize=8, fmt='%.0f N', colors='white')
+                    
+                    # Clean Scatter (NO LINES)
+                    ax_map.scatter(f_tri, r_tri, c='white', s=5, alpha=0.3, edgecolors='none', rasterized=True)
+                    
+                    ax_map.set_title("Aero Map & Ride Height Envelope", fontsize=13, pad=15)
+                    ax_map.set_xlabel("Front RH (mm)")
+                    ax_map.set_ylabel("Rear RH (mm)")
+                    plt.colorbar(cf, ax=ax_map, label="Total Downforce (N)")
+
+                    # 3. Time Series
+                    ax_time = fig.add_subplot(gs[1, :])
+                    # Ensure time starts at 0 for the isolated sector
+                    time_plot = time_f - time_f[0] if len(time_f) > 0 else time_f
+                    ax_time.plot(time_plot, f_rh_f, c='#0ea5e9', label="Front RH", lw=1.5)
+                    ax_time.plot(time_plot, r_rh_f, c='#D2751D', label="Rear RH", lw=1.5)
+                    ax_time.set_title("Dynamic Ride Height Envelope (Isolated Sector)", fontsize=13, pad=15)
+                    ax_time.set_xlabel("Time (s)")
+                    ax_time.set_ylabel("Ride Height (mm)")
+                    ax_time.grid(True, linestyle='--', alpha=0.1)
+                    ax_time.legend(loc='upper right', frameon=False)
+
+                    plt.tight_layout()
+                    fig.subplots_adjust(top=0.9)
+                    fig.suptitle(f"OpenDAV L3 Dashboard: {file_basename}", fontsize=16, color='white', y=0.98)
+
+                    if ans == 'open l3':
+                        gui_mode = get_gui_mode()
+                        if gui_mode == 3:
+                            show_ctk_graph(fig, "OpenDAV - L3 Dashboard")
+                        else:
+                            plt.show()
+                    elif ans == 'print l3':
+                        timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+                        export_dir = f"exports/L3_{timestamp}"
+                        os.makedirs(export_dir, exist_ok=True)
+                        export_path = os.path.join(export_dir, f"L3_Dashboard_{file_basename}.png")
+                        plt.savefig(export_path, dpi=300, bbox_inches='tight')
+                        plt.close(fig)
+                        print(f"  [+] Saved Static L3 Layout to {export_path}")
+                        
                     if headless: break
+
                 else:
                     print("  [!] Invalid command. Try 'open L1/L2', 'print L1/L2', or 'p'.")
 
