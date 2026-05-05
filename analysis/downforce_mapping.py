@@ -765,7 +765,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         plt.style.use(matplotx.styles.aura['dark'])
                         fig = plt.figure(figsize=(16, 10), num='OpenDAV - L3 Dashboard')
                         # 3 Rows: [0] G-Plot/Map, [1] Balance/Force, [2] Ride Heights
-                        gs = GridSpec(3, 2, height_ratios=[2, 1, 1], width_ratios=[1, 1.2], figure=fig)
+                        gs = GridSpec(2, 2, height_ratios=[2, 1], width_ratios=[1, 1.2], figure=fig)
                         
                         # 1. G-Plot
                         ax_g = fig.add_subplot(gs[0, 0])
@@ -800,26 +800,9 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
                         plt.colorbar(cf, ax=ax_map, label="Total Downforce (N)")
 
-                        # 3. Aero Balance & Total Downforce (Time Series)
-                        ax_aero = fig.add_subplot(gs[1, :])
+                        # 3. Ride Height Time Series
                         time_plot = time_f - time_f[0] if len(time_f) > 0 else time_f
-                        
-                        # Recalculate local balance for current mask
-                        f_load_f = (data[fl_load].data + data[fr_load].data)[aero_mask][valid_df_mask][dist_mask]
-                        v_g_f = vert_g[aero_mask][valid_df_mask][dist_mask]
-                        a_front_f = f_load_f - ((static_fl + static_fr) * scale_factor * v_g_f)
-                        a_bal_f = np.clip((a_front_f / total_df_f) * 100.0, 0, 100)
-
-                        ax_aero.plot(time_plot, a_bal_f, c='#0ea5e9', label="Aero Balance (%)", lw=1.5)
-                        ax_aero_twin = ax_aero.twinx()
-                        ax_aero_twin.plot(time_plot, total_df_f, c='#A020F0', label="Total Downforce (N)", lw=1.5, alpha=0.7)
-                        ax_aero.set_title("Aero Balance & Total Downforce", fontsize=11, pad=10)
-                        ax_aero.set_ylabel("Balance (%)", color='#0ea5e9')
-                        ax_aero_twin.set_ylabel("Downforce (N)", color='#A020F0')
-                        ax_aero.grid(True, alpha=0.1)
-
-                        # 4. Ride Height Time Series
-                        ax_rh = fig.add_subplot(gs[2, :])
+                        ax_rh = fig.add_subplot(gs[1, :])
                         ax_rh.plot(time_plot, f_rh_f, c='#0ea5e9', label="Front RH", lw=1.5)
                         ax_rh.plot(time_plot, r_rh_f, c='#D2751D', label="Rear RH", lw=1.5)
                         ax_rh.set_title("Ride Height Envelope", fontsize=11, pad=10)
