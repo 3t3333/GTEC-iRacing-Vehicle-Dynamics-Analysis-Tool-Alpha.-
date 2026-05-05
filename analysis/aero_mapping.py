@@ -64,6 +64,12 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             long_g = data[long_g_ch].data
             lat_g = data[lat_g_ch].data
 
+            # Extract Vertical G if available
+            vert_g = np.ones_like(lat_g)
+            if 'VertAccel' in data:
+                # iRacing VertAccel is ~9.81 m/s^2 at rest (1G).
+                vert_g = data['VertAccel'].data / 9.80665
+            
             # 1. Isolate the "Coast-Down" Calibration Zones
             # High speed (> 100mph), Zero Lat G (< 0.1), Zero Long G (+- 0.1 from drag deceleration)
             print("  [*] Running Coast-Down auto-calibration...")
@@ -97,11 +103,11 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             
             total_front_load = (fl_l + fr_l)[aero_mask]
             total_rear_load = (rl_l + rr_l)[aero_mask]
+            v_g_factor = vert_g[aero_mask]
             
-            # Simple Mechanical Subtraction (Ignoring Pitch transfer for the simplified V1 Map)
-            # In V2, we will use Wheelbase and CG Height to remove Longitudinal Transfer exactly.
-            aero_front = total_front_load - (static_fl + static_fr)
-            aero_rear = total_rear_load - (static_rl + static_rr)
+            # Apply Vertical G Compensation to isolate aerodynamic force
+            aero_front = total_front_load - ((static_fl + static_fr) * v_g_factor)
+            aero_rear = total_rear_load - ((static_rl + static_rr) * v_g_factor)
             
             # Ensure we don't divide by zero or negative total downforce. 
             # The threshold is lowered to 50 for robust IBT mock fallback functionality.

@@ -73,10 +73,11 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             long_g = data[long_g_ch].data
             # Extract Vertical G if available (1G is standard gravity in iRacing telemetry, usually offset to 0 or 1 depending on the channel)
             vert_g = np.ones_like(lat_g)
-            if \'VertAccel\' in data:
-                vert_g = data[\'VertAccel\'].data / 9.80665
-                # iRacing VertAccel is 0 when stationary on flat ground. So 1G means +1G compression.
-                # Total vertical force factor is (1.0 + vert_g).
+            if 'VertAccel' in data:
+                # iRacing VertAccel is ~9.81 m/s^2 at rest (1G).
+                # Therefore, the raw G factor is just VertAccel / 9.81.
+                vert_g = data['VertAccel'].data / 9.80665
+            
             
 
             # 1. Establish Static Loads
@@ -107,8 +108,8 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             total_load = total_front_load + total_rear_load
             # Apply Vertical G Compensation
             # Static weight represents the 1G baseline.
-            # If VertAccel is +0.5G (compression), the mechanical load is 1.5 * static_weight.
-            v_g_factor = 1.0 + vert_g[aero_mask]
+            # If VertAccel is 1.5G (compression), the mechanical load is 1.5 * static_weight.
+            v_g_factor = vert_g[aero_mask]
             total_downforce = total_load - (static_weight * v_g_factor)
 
             # Filter out extreme anomalies just in case
