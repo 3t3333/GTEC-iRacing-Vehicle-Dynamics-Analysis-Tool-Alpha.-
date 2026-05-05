@@ -105,7 +105,9 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             # it means the shock sensors are either zeroed differently or the MR is slightly off.
             # We apply a scalar to normalize the baseline to a known physical weight.
             # (Assuming a baseline dry weight of ~1250kg + driver + fuel ~= 1350kg)
-            actual_mass = 1350.0 
+            overrides = getattr(data, 'overrides', {})
+            phys_model = overrides.get('physics_model', {}) if overrides else {}
+            actual_mass = phys_model.get('actual_mass_kg', 1350.0) 
             scale_factor = 1.0
             
             if calc_mass > 1800 or calc_mass < 800:

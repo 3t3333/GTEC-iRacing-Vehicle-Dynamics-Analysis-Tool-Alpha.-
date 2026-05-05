@@ -96,7 +96,9 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             static_weight = static_fl + static_fr + static_rl + static_rr
             calc_mass = static_weight / 9.80665
             
-            actual_mass = 1350.0 
+            overrides = getattr(data, 'overrides', {})
+            phys_model = overrides.get('physics_model', {}) if overrides else {}
+            actual_mass = phys_model.get('actual_mass_kg', 1350.0) 
             scale_factor = 1.0
             
             if calc_mass > 1800 or calc_mass < 800:

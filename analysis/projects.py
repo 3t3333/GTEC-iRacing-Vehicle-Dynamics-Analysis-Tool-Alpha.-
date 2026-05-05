@@ -181,6 +181,26 @@ def confirm_vehicle_parameters(name, path, state):
             except ValueError:
                 print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
 
+
+    # 3. Static Mass
+    print(f"\n  {C_ACTION}[ 3. Static Mass Calibration (kg) ]{OpenDAV_RESET}")
+    print(f"  {C_INFO}Used to normalize shock sensor zeros. Enter car dry weight + driver + fuel.{OpenDAV_RESET}")
+    current_mass = model.get('actual_mass_kg', 1350.0)
+    while True:
+        inp = input(f"    Total Static Mass (Current: {current_mass:.1f} kg): ").strip()
+        if not inp:
+            model['actual_mass_kg'] = current_mass
+            break
+        try:
+            val = float(inp)
+            if val < 500 or val > 5000:
+                print(f"    {C_DANGER}[!] Unrealistic mass.{OpenDAV_RESET}")
+                continue
+            model['actual_mass_kg'] = val
+            break
+        except ValueError:
+            print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
+
     # Save the updated model
     full_model = {"physics_model": model}
     with open(model_path, "w") as f:
