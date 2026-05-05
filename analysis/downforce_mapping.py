@@ -94,6 +94,13 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                 static_rr = static_rl
 
             static_weight = static_fl + static_fr + static_rl + static_rr
+            static_weight = static_fl + static_fr + static_rl + static_rr
+            
+            # Diagnostic Baseline Check
+            print(f"  [i] Diagnostics - Calculated Static Mass: {(static_weight / 9.80665):.1f} kg")
+            if static_weight / 9.80665 > 3000 or static_weight / 9.80665 < 500:
+                print(f"      [!] WARNING: Static weight is {(static_weight / 9.80665):.1f} kg. Physics constants may be incorrectly mapped!")
+
 
             # 2. Filter for v > 100 km/h
             aero_mask = (speed_kmh > 100.0)

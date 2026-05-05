@@ -136,23 +136,29 @@ class IBTData:
         mrs = model.get('motion_ratios', {})      # Expects 0.0 - 1.0
         
         for corner in ['FL', 'FR', 'RL', 'RR']:
-            # 1. Determine Spring Rate (k)
-            # Priority: SimGit Override > YAML Setup > Generic Fallback (1000.0 N/mm -> 1M N/m)
-            k = springs.get(corner)
-            if k is None:
+            # 1. Determine Spring Rate (k) in N/mm for sane math
+            k_nmm = None
+            if corner in springs:
+                k_nmm = springs[corner] / 1000.0 # Convert N/m to N/mm
+            else:
                 yaml_key = f'SpringRate{corner}'
                 if yaml_key in self.channels:
-                    k = self.channels[yaml_key].data[0] * 1000.0 # Convert N/mm to N/m
+                    val = self.channels[yaml_key].data[0]
+                    # Check if YAML is already N/m or N/mm based on magnitude
+                    if val > 10000:
+                        k_nmm = val / 1000.0
+                    else:
+                        k_nmm = val
                 else:
-                    k = 1000.0 * 1000.0 # Standard fallback
+                    k_nmm = 240.0 # Safe default (240 N/mm) instead of 1,000,000 N/m
+            
+            # Convert back to N/m for final SI calculation
+            k = k_nmm * 1000.0
             
             # 2. Determine Motion Ratio (MR)
-            mr = mrs.get(corner, 1.0) # Default to 1:1 if not provided
+            mr = mrs.get(corner, 1.0)
             
-            # 3. Calculate Wheel Rate (Kw = K * MR^2)
-            kw = k * (mr ** 2)
-            
-            # 4. Map Deflection to Suspension Load
+            # 3. Map Deflection to Suspension Load
             defl_names = [f'LFshockdeflect', f'LFshockDefl'] if corner == 'FL' else \
                          ([f'RFshockdeflect', f'RFshockDefl'] if corner == 'FR' else \
                          ([f'LRshockdeflect', f'LRshockDefl'] if corner == 'RL' else \
@@ -160,8 +166,11 @@ class IBTData:
             
             for n in defl_names:
                 if n in self.channels:
-                    # Suspension Load (Newtons) = Deflection(m) * Wheel Rate (N/m)
-                    self.channels[f'Suspension Load {corner}'] = IBTChannel(f'Suspension Load {corner}', self.channels[n].data * kw, "N")
+                    # TRUE FORCE AT WHEEL = Shock_Deflection(m) * Spring_Rate(N/m) * Motion_Ratio
+                    # This ensures correct leverage without 'squaring' the MR error.
+                    shock_defl_m = self.channels[n].data
+                    wheel_force_n = shock_defl_m * k * mr
+                    self.channels[f'Suspension Load {corner}'] = IBTChannel(f'Suspension Load {corner}', wheel_force_n, "N")
                     break
 
     def __getitem__(self, key): return self.channels[key]
