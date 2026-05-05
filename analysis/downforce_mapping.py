@@ -724,7 +724,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
                 elif ans in ['open l3', 'print l3']:
                     try:
-                        # 1. Base Parallel Arrays (Already filtered for Speed > 100 and DF > 0)
+                        # 1. Base Parallel Arrays (Filtered for Speed > 100 and DF > 0)
                         lat_f = lat_g[aero_mask][valid_df_mask]
                         long_f = long_g[aero_mask][valid_df_mask]
                         time_f = data[channels['time']].data[aero_mask][valid_df_mask]
@@ -733,14 +733,15 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         total_df_f = total_downforce
 
                         # 2. Apply Sector & Lap Dist Masks
+                        dist_mask = np.ones_like(time_f, dtype=bool)
                         if 'distance_bounds' in session and session['distance_bounds'] is not None and channels.get('dist') and channels['dist'] in data:
                             b_min, b_max = session['distance_bounds']
-                            dist_f = data[channels['dist']].data[aero_mask][valid_df_mask]
+                            dist_arr = data[channels['dist']].data[aero_mask][valid_df_mask]
                             if 'selected_laps' in md and md['selected_laps'] and channels.get('lap') and channels['lap'] in data:
                                 lap_arr = data[channels['lap']].data[aero_mask][valid_df_mask]
-                                dist_mask = (dist_f >= b_min) & (dist_f <= b_max) & np.isin(lap_arr, md['selected_laps'])
+                                dist_mask = (dist_arr >= b_min) & (dist_arr <= b_max) & np.isin(lap_arr, md['selected_laps'])
                             else:
-                                dist_mask = (dist_f >= b_min) & (dist_f <= b_max)
+                                dist_mask = (dist_arr >= b_min) & (dist_arr <= b_max)
                             
                             f_rh_f = f_rh_f[dist_mask]
                             r_rh_f = r_rh_f[dist_mask]
@@ -753,7 +754,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             print("  [!] Insufficient data points in this sector/lap to generate L3.")
                             continue
 
-                        print("  [+] Building High-Fidelity L3 Dashboard (Side-by-Side)...")
+                        print("  [+] Building Full L3 Engineering Dashboard...")
                         import matplotlib.pyplot as plt
                         from matplotlib.gridspec import GridSpec
                         import matplotlib.tri as mtri
@@ -762,72 +763,98 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         import datetime
 
                         plt.style.use(matplotx.styles.aura['dark'])
-                        fig = plt.figure(figsize=(16, 8), num='OpenDAV - L3 Dashboard')
-                        gs = GridSpec(1, 2, width_ratios=[1, 1.2], figure=fig)
+                        fig = plt.figure(figsize=(16, 10), num='OpenDAV - L3 Dashboard')
+                        # 3 Rows: [0] G-Plot/Map, [1] Balance/Force, [2] Ride Heights
+                        gs = GridSpec(3, 2, height_ratios=[2, 1, 1], width_ratios=[1, 1.2], figure=fig)
                         
                         # 1. G-Plot
                         ax_g = fig.add_subplot(gs[0, 0])
                         ax_g.scatter(lat_f, long_f, c='#0ea5e9', s=10, alpha=0.3, edgecolors='none', rasterized=True)
-                        ax_g.set_title("Friction Circle (G-Plot)", fontsize=13, pad=15)
-                        ax_g.set_xlabel("Lat G")
-                        ax_g.set_ylabel("Long G")
+                        ax_g.set_title("Friction Circle (G-Plot)", fontsize=11, pad=10)
+                        ax_g.set_xlabel("Lat G"); ax_g.set_ylabel("Long G")
                         ax_g.set_xlim([-2.5, 2.5]); ax_g.set_ylim([-2.5, 2.5])
                         ax_g.set_aspect('equal')
                         ax_g.grid(True, alpha=0.1)
 
                         # 2. Aero Map Contour
                         ax_map = fig.add_subplot(gs[0, 1])
-                        
                         f_tri, r_tri, z_tri = f_rh_f, r_rh_f, total_df_f
                         if len(f_tri) > 5000:
                             idx = np.linspace(0, len(f_tri)-1, 5000, dtype=int)
                             f_tri, r_tri, z_tri = f_tri[idx], r_tri[idx], z_tri[idx]
-                            
                         triang = mtri.Triangulation(f_tri, r_tri)
-                        c_x = np.mean(f_tri[triang.triangles], axis=1)
-                        c_y = np.mean(r_tri[triang.triangles], axis=1)
+                        c_xy = np.column_stack((np.mean(f_tri[triang.triangles], axis=1), np.mean(r_tri[triang.triangles], axis=1)))
                         tree = cKDTree(np.column_stack((f_tri, r_tri)))
-                        distances, _ = tree.query(np.column_stack((c_x, c_y)))
+                        distances, _ = tree.query(c_xy)
                         triang.set_mask(distances > (max(f_tri)-min(f_tri)) * 0.05)
-                        
                         cf = ax_map.tricontourf(triang, z_tri, levels=20, cmap=opendav_cmap, extend='both', alpha=0.9)
                         lines = ax_map.tricontour(triang, z_tri, levels=10, colors='white', linewidths=0.5, alpha=0.3)
                         ax_map.clabel(lines, inline=True, fontsize=8, fmt='%d N')
                         
-                        # Inversion Test
+                        # Apply Axes Inversion (Test)
                         ax_map.invert_xaxis()
                         ax_map.invert_yaxis()
                         
                         ax_map.scatter(f_tri, r_tri, c='white', s=2, alpha=0.1, rasterized=True)
-                        ax_map.set_title("Aero Map (Inverted Axes Test)", fontsize=13, pad=15)
-                        ax_map.set_xlabel("Front Ride Height (mm)")
-                        ax_map.set_ylabel("Rear Ride Height (mm)")
+                        ax_map.set_title("Aero Map (Inverted Axes Test)", fontsize=11, pad=10)
+                        ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
                         plt.colorbar(cf, ax=ax_map, label="Total Downforce (N)")
 
+                        # 3. Aero Balance & Total Downforce (Time Series)
+                        ax_aero = fig.add_subplot(gs[1, :])
+                        time_plot = time_f - time_f[0] if len(time_f) > 0 else time_f
+                        
+                        # Recalculate local balance for current mask
+                        f_load_f = (data[fl_load].data + data[fr_load].data)[aero_mask][valid_df_mask][dist_mask]
+                        v_g_f = vert_g[aero_mask][valid_df_mask][dist_mask]
+                        a_front_f = f_load_f - ((static_fl + static_fr) * scale_factor * v_g_f)
+                        a_bal_f = np.clip((a_front_f / total_df_f) * 100.0, 0, 100)
+
+                        ax_aero.plot(time_plot, a_bal_f, c='#0ea5e9', label="Aero Balance (%)", lw=1.5)
+                        ax_aero_twin = ax_aero.twinx()
+                        ax_aero_twin.plot(time_plot, total_df_f, c='#A020F0', label="Total Downforce (N)", lw=1.5, alpha=0.7)
+                        ax_aero.set_title("Aero Balance & Total Downforce", fontsize=11, pad=10)
+                        ax_aero.set_ylabel("Balance (%)", color='#0ea5e9')
+                        ax_aero_twin.set_ylabel("Downforce (N)", color='#A020F0')
+                        ax_aero.grid(True, alpha=0.1)
+
+                        # 4. Ride Height Time Series
+                        ax_rh = fig.add_subplot(gs[2, :])
+                        ax_rh.plot(time_plot, f_rh_f, c='#0ea5e9', label="Front RH", lw=1.5)
+                        ax_rh.plot(time_plot, r_rh_f, c='#D2751D', label="Rear RH", lw=1.5)
+                        ax_rh.set_title("Ride Height Envelope", fontsize=11, pad=10)
+                        ax_rh.set_xlabel("Time (s)"); ax_rh.set_ylabel("RH (mm)")
+                        ax_rh.grid(True, alpha=0.1); ax_rh.legend(loc='upper right', frameon=False)
+
                         plt.tight_layout()
-                        fig.subplots_adjust(top=0.88)
-                        fig.suptitle(f"OpenDAV L3: {file_basename}", fontsize=16, color='white', y=0.97)
+                        fig.subplots_adjust(top=0.9)
+                        fig.suptitle(f"OpenDAV L3: {file_basename}", fontsize=15, color='white', y=0.98)
 
                         if ans == 'open l3':
-                            gui_mode = get_gui_mode()
-                            if gui_mode == 3: show_ctk_graph(fig, "OpenDAV - L3 Dashboard")
+                            if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - L3 Dashboard")
                             else: plt.show()
                         elif ans == 'print l3':
-                            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                            export_dir = "exports"
+                            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+                            export_folder = os.path.join("exports", f"F8L3_{timestamp}")
+                            os.makedirs(export_folder, exist_ok=True)
+                            out_file = os.path.join(export_folder, f"L3_Analysis_{file_basename}.png")
+                            
                             if '<' in ans_raw:
                                 project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                                 from analysis.projects import save_to_project
-                                subf = headless_config.get('run_folder') if headless else None
-                                save_to_project(fig, project_name, f"L3_Dash_{ts}.png", subfolder=subf)
+                                subf = os.path.join(headless_config.get('run_folder', ''), f"F8L3_{timestamp}") if headless else f"F8L3_{timestamp}"
+                                save_to_project(fig, project_name, f"L3_Analysis_{file_basename}.png", subfolder=subf)
                             else:
-                                os.makedirs(export_dir, exist_ok=True)
-                                out = os.path.join(export_dir, f"L3_Dash_{ts}.png")
-                                plt.savefig(out, dpi=300, bbox_inches='tight')
-                                print(f"  [+] Saved to {out}")
+                                plt.savefig(out_file, dpi=300, bbox_inches='tight')
+                                print(f"  [+] Saved L3 Report to folder: {export_folder}")
                             plt.close(fig)
                             
                         if headless: break
+                    except Exception as e:
+                        print(f"  [!] ERROR in L3 Dashboard: {e}")
+                        import traceback; traceback.print_exc()
+                        if headless: break
+
                     except Exception as e:
                         print(f"  [!] CRASH in L3 Dashboard: {e}")
                         import traceback
