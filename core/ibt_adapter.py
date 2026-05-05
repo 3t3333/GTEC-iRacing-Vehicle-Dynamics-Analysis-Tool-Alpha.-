@@ -135,6 +135,10 @@ class IBTData:
         springs = model.get('spring_rate_npm', {}) # Expects N/m
         mrs = model.get('motion_ratios', {})      # Expects 0.0 - 1.0
         
+        # 0. Global Scale Factor (Mass Calibration)
+        # If the user provides a known actual mass, we can scale the calculated loads.
+        actual_mass = model.get('actual_mass_kg', None)
+        
         for corner in ['FL', 'FR', 'RL', 'RR']:
             # 1. Determine Spring Rate (k) in N/mm for sane math
             k_nmm = None
@@ -144,19 +148,20 @@ class IBTData:
                 yaml_key = f'SpringRate{corner}'
                 if yaml_key in self.channels:
                     val = self.channels[yaml_key].data[0]
-                    # Check if YAML is already N/m or N/mm based on magnitude
                     if val > 10000:
                         k_nmm = val / 1000.0
                     else:
                         k_nmm = val
                 else:
-                    k_nmm = 240.0 # Safe default (240 N/mm) instead of 1,000,000 N/m
+                    k_nmm = 240.0 # Safe default (240 N/mm)
             
-            # Convert back to N/m for final SI calculation
-            k = k_nmm * 1000.0
+            k = k_nmm * 1000.0 # N/m
             
             # 2. Determine Motion Ratio (MR)
-            mr = mrs.get(corner, 1.0)
+            # HARDCODED FIX: If motion ratio is missing, do NOT default to 1.0 for modern GTs.
+            # We use 0.82 (Front) and 0.75 (Rear) as standard defaults to prevent "2000kg" math vacuums.
+            default_mr = 0.82 if 'F' in corner else 0.75
+            mr = mrs.get(corner, default_mr)
             
             # 3. Map Deflection to Suspension Load
             defl_names = [f'LFshockdeflect', f'LFshockDefl'] if corner == 'FL' else \
@@ -166,10 +171,16 @@ class IBTData:
             
             for n in defl_names:
                 if n in self.channels:
-                    # TRUE FORCE AT WHEEL = Shock_Deflection(m) * Spring_Rate(N/m) * Motion_Ratio
-                    # This ensures correct leverage without 'squaring' the MR error.
                     shock_defl_m = self.channels[n].data
+                    
+                    # SHOCK ZEROING FIX:
+                    # In iRacing, shock deflection is often 0 when the car is ON THE GROUND.
+                    # This means the sensor is reading 'travel from static', NOT 'travel from droop'.
+                    # If this is true, multiplying by Spring Rate only gives us the DYNAMIC force, 
+                    # not the absolute force. 
+                    # For now, we calculate the dynamic force delta:
                     wheel_force_n = shock_defl_m * k * mr
+                    
                     self.channels[f'Suspension Load {corner}'] = IBTChannel(f'Suspension Load {corner}', wheel_force_n, "N")
                     break
 

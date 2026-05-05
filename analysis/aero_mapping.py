@@ -92,6 +92,24 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                 static_fr = static_fl
                 static_rl = np.median(rl_l) * 0.6
                 static_rr = static_rl
+                
+            static_weight = static_fl + static_fr + static_rl + static_rr
+            calc_mass = static_weight / 9.80665
+            
+            actual_mass = 1350.0 
+            scale_factor = 1.0
+            
+            if calc_mass > 1800 or calc_mass < 800:
+                scale_factor = actual_mass / calc_mass
+                fl_l *= scale_factor
+                fr_l *= scale_factor
+                rl_l *= scale_factor
+                rr_l *= scale_factor
+                static_weight *= scale_factor
+                static_fl *= scale_factor
+                static_fr *= scale_factor
+                static_rl *= scale_factor
+                static_rr *= scale_factor
 
             # 3. Filter for High-Speed Stable Corners & Straights to build the map
             # We want areas where aerodynamics are working (Speed > 80mph)

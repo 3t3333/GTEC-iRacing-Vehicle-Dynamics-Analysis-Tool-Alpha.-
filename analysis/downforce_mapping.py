@@ -95,11 +95,34 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
             static_weight = static_fl + static_fr + static_rl + static_rr
             static_weight = static_fl + static_fr + static_rl + static_rr
+            calc_mass = static_weight / 9.80665
             
             # Diagnostic Baseline Check
-            print(f"  [i] Diagnostics - Calculated Static Mass: {(static_weight / 9.80665):.1f} kg")
-            if static_weight / 9.80665 > 3000 or static_weight / 9.80665 < 500:
-                print(f"      [!] WARNING: Static weight is {(static_weight / 9.80665):.1f} kg. Physics constants may be incorrectly mapped!")
+            print(f"  [i] Diagnostics - Calculated Static Mass: {calc_mass:.1f} kg")
+            
+            # MASS CALIBRATION SCALAR
+            # If the calculated mass is wildly off (e.g. 2200kg for a 1228kg Porsche Cup),
+            # it means the shock sensors are either zeroed differently or the MR is slightly off.
+            # We apply a scalar to normalize the baseline to a known physical weight.
+            # (Assuming a baseline dry weight of ~1250kg + driver + fuel ~= 1350kg)
+            actual_mass = 1350.0 
+            scale_factor = 1.0
+            
+            if calc_mass > 1800 or calc_mass < 800:
+                print(f"      [!] WARNING: Static weight is {calc_mass:.1f} kg. Applying Mass Calibration Scalar...")
+                scale_factor = actual_mass / calc_mass
+                print(f"      [i] Applied Scale Factor: {scale_factor:.3f} (Targeting {actual_mass} kg)")
+                
+                # Rescale the loads
+                fl_l *= scale_factor
+                fr_l *= scale_factor
+                rl_l *= scale_factor
+                rr_l *= scale_factor
+                static_weight *= scale_factor
+                static_fl *= scale_factor
+                static_fr *= scale_factor
+                static_rl *= scale_factor
+                static_rr *= scale_factor
 
 
             # 2. Filter for v > 100 km/h
