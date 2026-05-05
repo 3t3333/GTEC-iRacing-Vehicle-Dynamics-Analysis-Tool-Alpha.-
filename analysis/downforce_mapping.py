@@ -227,6 +227,21 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
  
   >> [USE CASE]: DIRECTLY COMPARE AERODYNAMIC TOPOGRAPHY SHIFTS BETWEEN TWO SETUP ITERATIONS."""
             print(l2_preview)
+            print(f"""
+        L3: DYNAMIC AERO DASHBOARD (MONASH-STYLE)
+ ┌───────────────────────────────────────────────────────────────────────────────────┐
+ │                                                                                   │
+ │      [ G-PLOT ]                             [ AERO CONTOUR ]                      │
+ │   (Friction Circle)                      (Ride Height Envelope)                   │
+ │                                                                                   │
+ │                                                                                   │
+ │                                                                                   │
+ │                                      [ TIME SERIES ]                              │
+ │                                (Front and Rear Ride Heights)                      │
+ │                                                                                   │
+ └───────────────────────────────────────────────────────────────────────────────────┘
+ 
+  >> [USE CASE]: INTERACTIVE PLOTLY HTML EXPORT FOR DYNAMIC RIDE HEIGHT TRACKING.""")
 
             _headless_ran = False
 
@@ -241,7 +256,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                     headless_config['_ran'] = True
                     ans_raw = f"print {headless_config['layout'].lower()} < {headless_config['project']}"
                 else:
-                    ans_raw = input(f"\n  Select action ('open L1', 'print L1', 'open L2', 'print L2', 'p' to go back < proj): ").strip().lower()
+                    ans_raw = input(f"\n  Select action ('open L1', 'print L1', 'open L2', 'print L2', 'open L3', 'p' to go back < proj): ").strip().lower()
                 ans = ans_raw.split('<')[0].strip().lower()
                 
                 if ans == 'p':
@@ -662,6 +677,14 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             print(f"  [+] Saved L2 Layout to {export_path}")
                         if headless: break
 
+
+                elif ans == 'open l3':
+                    from analysis.plotly_dash import generate_monash_dashboard
+                    timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+                    export_dir = f"exports/L3_{timestamp}"
+                    os.makedirs(export_dir, exist_ok=True)
+                    generate_monash_dashboard(f_rh, r_rh, total_downforce, lat_g[aero_mask][valid_df_mask], long_g[aero_mask][valid_df_mask], data[channels['time']].data[aero_mask][valid_df_mask], file_basename, export_dir)
+                    if headless: break
                 else:
                     print("  [!] Invalid command. Try 'open L1/L2', 'print L1/L2', or 'p'.")
 
