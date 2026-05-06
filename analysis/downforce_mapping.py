@@ -315,7 +315,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                     headless_config['_ran'] = True
                     ans_raw = f"print {headless_config['layout'].lower()} < {headless_config['project']}"
                 else:
-                    ans_raw = input(f"\n  Select action ('open L1', 'print L1', 'open L2', 'print L2', 'open L3', 'p' to go back < proj): ").strip().lower()
+                    ans_raw = input(f"\n  Select action ('open L1/L2/L3', 'print L1/L2/L3/L4', 'p' to return): ").strip().lower()
                 ans = ans_raw.split('<')[0].strip().lower()
                 
                 if ans == 'p':
@@ -863,7 +863,8 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
                 elif ans in ['print l4']:
                     # 1. Base Parallel Arrays (Filtered)
-                    mask_base = aero_mask & (total_downforce > 0)
+                    mask_base = aero_mask.copy()
+                    mask_base[aero_mask] &= valid_df_mask
                     
                     time_raw = data[channels['time']].data
                     dist_raw = data[channels['dist']].data if channels.get('dist') in data else np.zeros_like(time_raw)
