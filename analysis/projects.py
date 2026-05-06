@@ -185,12 +185,9 @@ def confirm_vehicle_parameters(name, path, state):
                     print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
     else:
         # Default MR for prototypes is usually 1.0 because the rocker math is internal
-        model['motion_ratios'] = {"FL": 1.0, "FR": 1.0, "RL": 1.0, "RR": 1.0}
-
-
-
-    # 3. Static Mass
-    print(f"\n  {C_ACTION}[ 3. Static Mass Calibration (kg) ]{OpenDAV_RESET}")
+        model['motion_ratios'] = {"FL": 1.0, "FR": 1.0, "RL": 1.0, "RR": 1.0}    # 3. Static Mass
+    print(f"
+  {C_ACTION}[ 3. Static Mass Calibration (kg) ]{OpenDAV_RESET}")
     print(f"  {C_INFO}Used to normalize shock sensor zeros. Enter car dry weight + driver + fuel.{OpenDAV_RESET}")
     current_mass = model.get('actual_mass_kg', 1350.0)
     while True:
@@ -204,6 +201,26 @@ def confirm_vehicle_parameters(name, path, state):
                 print(f"    {C_DANGER}[!] Unrealistic mass.{OpenDAV_RESET}")
                 continue
             model['actual_mass_kg'] = val
+            break
+        except ValueError:
+            print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
+
+    # 4. Target Aero Balance
+    print(f"
+  {C_ACTION}[ 4. Target Aero Balance (%) ]{OpenDAV_RESET}")
+    print(f"  {C_INFO}Used for Delta Mapping in F7L3. e.g. 43.5 for 43.5% Front.{OpenDAV_RESET}")
+    current_ab = model.get('target_aero_balance', 45.0)
+    while True:
+        inp = input(f"    Target AB% (Current: {current_ab:.1f}%): ").strip()
+        if not inp:
+            model['target_aero_balance'] = current_ab
+            break
+        try:
+            val = float(inp)
+            if val < 10 or val > 90:
+                print(f"    {C_DANGER}[!] Unrealistic aero balance.{OpenDAV_RESET}")
+                continue
+            model['target_aero_balance'] = val
             break
         except ValueError:
             print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")

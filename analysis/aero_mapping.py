@@ -679,28 +679,40 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     rake_s = r_rh_s - f_rh_s
                     
                     
+                    # Target AB Logic: SimGit Model -> YAML -> User Input -> Default 45.0
                     target_ab = None
                     try:
-                        # Try to parse target AB from the YAML header first!
-                        yaml_str = session.get('metadata', {}).get('session_info_yaml', '')
-                        if yaml_str:
-                            import yaml
-                            parsed = yaml.safe_load(yaml_str)
-                            if 'AeroBalanceCalc' in parsed:
-                                ab_str = parsed['AeroBalanceCalc'].get('FrontDownforce', '')
-                                if ab_str:
-                                    target_ab = float(str(ab_str).replace('%', '').strip())
-                                    print(f"  [+] Extracted Target Aero Balance from YAML: {target_ab}%")
-                    except Exception:
-                        pass
+                        phys_model = overrides.get('physics_model', {}) if overrides else {}
+                        if 'target_aero_balance' in phys_model:
+                            target_ab = float(phys_model['target_aero_balance'])
+                            print(f"  [i] Using SimGit Target Aero Balance: {target_ab:.1f}%")
+                    except Exception: pass
+
+                    if target_ab is None:
+                        try:
+                            # Try to parse target AB from the YAML header first!
+                            yaml_str = session.get('metadata', {}).get('session_info_yaml', '')
+                            if yaml_str:
+                                import yaml
+                                parsed = yaml.safe_load(yaml_str)
+                                if 'AeroBalanceCalc' in parsed:
+                                    ab_str = parsed['AeroBalanceCalc'].get('FrontDownforce', '')
+                                    if ab_str:
+                                        target_ab = float(str(ab_str).replace('%', '').strip())
+                                        print(f"  [+] Extracted Target Aero Balance from YAML: {target_ab}%")
+                        except Exception:
+                            pass
                     
                     if target_ab is None:
-                        print(f"  [+] Target CoG (Center of Gravity) not found in YAML. Defaulting to 45.0%.")
-                        target_ab_input = "" if headless else input("      Enter Target Aero Balance % (or press Enter for 45.0): ").strip()
-                        try:
-                            target_ab = float(target_ab_input) if target_ab_input else 45.0
-                        except ValueError:
-                            target_ab = 45.0
+                        if headless:
+                            target_ab = float(headless_config.get('target_ab', '45.0'))
+                        else:
+                            print(f"  [+] Target CoG (Center of Gravity) not found in YAML or SimGit.")
+                            target_ab_input = input("      Enter Target Aero Balance % (or press Enter for 45.0): ").strip()
+                            try:
+                                target_ab = float(target_ab_input) if target_ab_input else 45.0
+                            except ValueError:
+                                target_ab = 45.0
                     
                     print("  [+] Building Target Delta Analyzer Graph (L3)...")
                     import matplotx
