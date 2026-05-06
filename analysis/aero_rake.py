@@ -206,7 +206,7 @@ def run_rake_analysis(sessions, headless=False, headless_config=None):
                         else: plt.show()
                     else:
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-                        file_out = f"Rake_L1_{timestamp}_{file_basename}.png"
+                        file_out = f"F3L1_Rake_{timestamp}_{file_basename}.png"
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project
@@ -303,7 +303,7 @@ def run_rake_analysis(sessions, headless=False, headless_config=None):
                     else:
                         ts = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
                         os.makedirs("exports", exist_ok=True)
-                        ep = f"exports/Rake_L2_{ts}_{file_basename}.png"
+                        ep = f"exports/F3L2_Rake_{ts}_{file_basename}.png"
                         plt.savefig(ep, dpi=300); plt.close(fig)
                         print(f"  [+] Saved to {ep}")
                         if headless: break

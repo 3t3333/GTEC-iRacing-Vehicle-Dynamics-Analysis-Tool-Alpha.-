@@ -353,9 +353,9 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
 
                     try:
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-                        export_dir = f"exports/F2L1_{timestamp}"
+                        export_dir = f"exports/F7L1_{timestamp}"
                         os.makedirs(export_dir, exist_ok=True)
-                        main_filename = os.path.join(export_dir, f"F2L1_{file_basename}.png")
+                        main_filename = os.path.join(export_dir, f"F7L1_{file_basename}.png")
                         generate_2d_plot(f_rh, r_rh, aero_balance, f"2D Aero Balance Heatmap\n{file_basename}", main_filename)
                         
                         ans_ext = 'n' if headless else input("  Print extended report (Sectors/Corners)? (y/n): ").strip().lower()
@@ -642,7 +642,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             plt.show()
                     elif ans == 'print l2':
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-                        file_out = f"F2L2_{file_basename}_vs_{os.path.basename(ref_path)}.png"
+                        file_out = f"F7L2_{file_basename}_vs_{os.path.basename(ref_path)}.png"
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project
@@ -651,7 +651,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             plt.close(fig)
                             if headless: break
                         else:
-                            export_dir = f"exports/F2L2_{timestamp}"
+                            export_dir = f"exports/F7L2_{timestamp}"
                             os.makedirs(export_dir, exist_ok=True)
                             export_path = os.path.join(export_dir, file_out)
                             plt.savefig(export_path, dpi=300, bbox_inches='tight')
@@ -787,7 +787,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         else: plt.show()
                     else:
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
-                        file_out = f"F2L3_{timestamp}_{file_basename}.png"
+                        file_out = f"F7L3_{timestamp}_{file_basename}.png"
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project

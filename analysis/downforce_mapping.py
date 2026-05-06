@@ -94,7 +94,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                 static_rr = static_rl
 
             static_weight = static_fl + static_fr + static_rl + static_rr
-            static_weight = static_fl + static_fr + static_rl + static_rr
             calc_mass = static_weight / 9.80665
             
             # Diagnostic Baseline Check
