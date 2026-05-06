@@ -361,39 +361,45 @@ def run_manual_analysis(project_name, state):
             tool_choice = get_tui_choice(tools)
             if tool_choice == 'p': break
             
-            if tool_choice == '1':
-                from analysis.tire_energy import run_tire_energy_profiler
-                run_tire_energy_profiler(sessions)
-            elif tool_choice == '2':
-                from analysis.setup_viewer import run_setup_viewer
-                run_setup_viewer(sessions)
-            elif tool_choice == '3':
-                from analysis.aero_rake import run_rake_analysis
-                run_rake_analysis(sessions)
-            elif tool_choice == '4':
-                from analysis.tire_fuel_windows import run_tire_fuel_windows
-                run_tire_fuel_windows(sessions)
-            elif tool_choice == '5':
-                from analysis.tire_performance import run_sector_tire_analysis
-                run_sector_tire_analysis(sessions)
-            elif tool_choice == '6':
-                from analysis.math_sandbox import run_custom_math_graph
-                run_custom_math_graph(sessions)
-            elif tool_choice == '7':
-                from analysis.aero_mapping import run_aero_mapping
-                run_aero_mapping(sessions)
-            elif tool_choice == '8':
-                from analysis.downforce_mapping import run_downforce_mapping
-                run_downforce_mapping(sessions)
-            elif tool_choice == '9':
-                from analysis.pitch_kinematics import run_pitch_analyzer
-                run_pitch_analyzer(sessions)
-            elif tool_choice == '10':
-                from analysis.yaw_kinematics import run_yaw_analyzer
-                run_yaw_analyzer(sessions)
-            elif tool_choice == '11':
-                from analysis.load_transfer import run_tlltd_analyzer
-                run_tlltd_analyzer(sessions)
+            try:
+                if tool_choice == '1':
+                    from analysis.tire_energy import run_tire_energy_profiler
+                    run_tire_energy_profiler(sessions)
+                elif tool_choice == '2':
+                    from analysis.setup_viewer import run_setup_viewer
+                    run_setup_viewer(sessions)
+                elif tool_choice == '3':
+                    from analysis.aero_rake import run_rake_analysis
+                    run_rake_analysis(sessions)
+                elif tool_choice == '4':
+                    from analysis.tire_fuel_windows import run_tire_fuel_windows
+                    run_tire_fuel_windows(sessions)
+                elif tool_choice == '5':
+                    from analysis.tire_performance import run_sector_tire_analysis
+                    run_sector_tire_analysis(sessions)
+                elif tool_choice == '6':
+                    from analysis.math_sandbox import run_custom_math_graph
+                    run_custom_math_graph(sessions)
+                elif tool_choice == '7':
+                    from analysis.aero_mapping import run_aero_mapping
+                    run_aero_mapping(sessions)
+                elif tool_choice == '8':
+                    from analysis.downforce_mapping import run_downforce_mapping
+                    run_downforce_mapping(sessions)
+                elif tool_choice == '9':
+                    from analysis.pitch_kinematics import run_pitch_analyzer
+                    run_pitch_analyzer(sessions)
+                elif tool_choice == '10':
+                    from analysis.yaw_kinematics import run_yaw_analyzer
+                    run_yaw_analyzer(sessions)
+                elif tool_choice == '11':
+                    from analysis.load_transfer import run_tlltd_analyzer
+                    run_tlltd_analyzer(sessions)
+            except Exception as e:
+                import traceback
+                print(f"\n  [!!!] A fatal error occurred while running the tool: {e}")
+                traceback.print_exc()
+                input("\nPress Enter to return to the tools menu...")
 
 def commit_files(name, path, state):
     while True:
