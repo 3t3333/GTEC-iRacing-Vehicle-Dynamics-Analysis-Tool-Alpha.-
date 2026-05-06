@@ -135,11 +135,35 @@ class IBTData:
         springs = model.get('spring_rate_npm', {}) # Expects N/m
         mrs = model.get('motion_ratios', {})      # Expects 0.0 - 1.0
         
-        # 0. Global Scale Factor (Mass Calibration)
-        # If the user provides a known actual mass, we can scale the calculated loads.
-        actual_mass = model.get('actual_mass_kg', None)
-        
+        # Prototype Heave/Roll Mapping (e.g. Acura GTP, Cadillac LMDh)
+        if 'HFshockDefl' in self.channels:
+            # Front Heave and Roll
+            hf_defl = self.channels['HFshockDefl'].data
+            fr_roll_defl = self.channels['FROLLshockDefl'].data if 'FROLLshockDefl' in self.channels else np.zeros_like(hf_defl)
+            
+            # Use SimGit values or defaults for Prototypes
+            k_heave_f = springs.get('HF', 300.0 * 1000.0) # 300 N/mm default for heave
+            k_roll_f = springs.get('FROLL', 500.0 * 1000.0) # 500 N/mm default for roll
+            
+            # Rear Heave (often called TR or Third Rear) and Roll
+            tr_defl = self.channels['TRshockDefl'].data if 'TRshockDefl' in self.channels else np.zeros_like(hf_defl)
+            rr_roll_defl = self.channels['RROLLshockDefl'].data if 'RROLLshockDefl' in self.channels else np.zeros_like(hf_defl)
+            
+            k_heave_r = springs.get('TR', 250.0 * 1000.0) 
+            k_roll_r = springs.get('RROLL', 400.0 * 1000.0)
+
+            # Convert Deflection to Virtual Corner Loads
+            # This is an approximation for rocker-based systems
+            self.channels['Suspension Load FL'] = IBTChannel('Suspension Load FL', (hf_defl * k_heave_f + fr_roll_defl * k_roll_f) / 2.0, "N")
+            self.channels['Suspension Load FR'] = IBTChannel('Suspension Load FR', (hf_defl * k_heave_f - fr_roll_defl * k_roll_f) / 2.0, "N")
+            self.channels['Suspension Load RL'] = IBTChannel('Suspension Load RL', (tr_defl * k_heave_r + rr_roll_defl * k_roll_r) / 2.0, "N")
+            self.channels['Suspension Load RR'] = IBTChannel('Suspension Load RR', (tr_defl * k_heave_r - rr_roll_defl * k_roll_r) / 2.0, "N")
+
         for corner in ['FL', 'FR', 'RL', 'RR']:
+            # Skip if already populated by Heave/Roll logic
+            if f'Suspension Load {corner}' in self.channels:
+                continue
+                
             # 1. Determine Spring Rate (k) in N/mm for sane math
             k_nmm = None
             if corner in springs:
@@ -158,8 +182,6 @@ class IBTData:
             k = k_nmm * 1000.0 # N/m
             
             # 2. Determine Motion Ratio (MR)
-            # HARDCODED FIX: If motion ratio is missing, do NOT default to 1.0 for modern GTs.
-            # We use 0.82 (Front) and 0.75 (Rear) as standard defaults to prevent "2000kg" math vacuums.
             default_mr = 0.82 if 'F' in corner else 0.75
             mr = mrs.get(corner, default_mr)
             
@@ -172,15 +194,7 @@ class IBTData:
             for n in defl_names:
                 if n in self.channels:
                     shock_defl_m = self.channels[n].data
-                    
-                    # SHOCK ZEROING FIX:
-                    # In iRacing, shock deflection is often 0 when the car is ON THE GROUND.
-                    # This means the sensor is reading 'travel from static', NOT 'travel from droop'.
-                    # If this is true, multiplying by Spring Rate only gives us the DYNAMIC force, 
-                    # not the absolute force. 
-                    # For now, we calculate the dynamic force delta:
                     wheel_force_n = shock_defl_m * k * mr
-                    
                     self.channels[f'Suspension Load {corner}'] = IBTChannel(f'Suspension Load {corner}', wheel_force_n, "N")
                     break
 

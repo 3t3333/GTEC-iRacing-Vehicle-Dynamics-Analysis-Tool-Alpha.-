@@ -121,15 +121,21 @@ def confirm_vehicle_parameters(name, path, state):
 
     # Try to auto-detect from the most recent baseline telemetry if available
     detected_springs = {}
+    is_prototype = False
     if state.get('baseline') and os.path.exists(state['baseline']):
         try:
             print(f"\n  [*] Scanning baseline telemetry for known parameters...")
             from core.telemetry import load_telemetry
             data, _, _, _ = load_telemetry(state['baseline'])
-            for corner in ['FL', 'FR', 'RL', 'RR']:
+            
+            if 'HFshockDefl' in data.channels:
+                is_prototype = True
+                print(f"  {C_INFO}[i] Prototype Heave/Roll system detected.{OpenDAV_RESET}")
+            
+            search_keys = ['HF', 'FROLL', 'TR', 'RROLL'] if is_prototype else ['FL', 'FR', 'RL', 'RR']
+            for corner in search_keys:
                 ch_name = f'SpringRate{corner}'
                 if ch_name in data.channels:
-                    # iRacing usually stores this in N/mm in the YAML
                     detected_springs[corner] = data.channels[ch_name].data[0] 
         except Exception:
             pass
@@ -141,8 +147,9 @@ def confirm_vehicle_parameters(name, path, state):
 
     # 1. Spring Rates
     print(f"\n  {C_ACTION}[ 1. Spring Rates (N/mm) ]{OpenDAV_RESET}")
-    for corner in ['FL', 'FR', 'RL', 'RR']:
-        current_val = model['spring_rate_npm'].get(corner, 1000000.0) / 1000.0 # Convert back to N/mm for display
+    rate_keys = ['HF', 'FROLL', 'TR', 'RROLL'] if is_prototype else ['FL', 'FR', 'RL', 'RR']
+    for corner in rate_keys:
+        current_val = model['spring_rate_npm'].get(corner, 240000.0 if not is_prototype else 300000.0) / 1000.0
         detected_val = detected_springs.get(corner)
         
         prompt_suffix = f"(Detected: {detected_val:.1f})" if detected_val else f"(Current: {current_val:.1f})"
@@ -150,36 +157,36 @@ def confirm_vehicle_parameters(name, path, state):
         while True:
             inp = input(f"    {corner} Spring Rate {prompt_suffix}: ").strip()
             if not inp:
-                # Use detected if available, otherwise keep current
                 val = detected_val if detected_val else current_val
-                model['spring_rate_npm'][corner] = val * 1000.0 # Store as N/m
+                model['spring_rate_npm'][corner] = val * 1000.0
                 break
             try:
                 val = float(inp)
-                model['spring_rate_npm'][corner] = val * 1000.0 # Store as N/m
-                break
-            except ValueError:
-                print(f"    {C_DANGER}[!] Invalid number. Please enter a valid float (e.g. 260.0).{OpenDAV_RESET}")
-
-    # 2. Motion Ratios
-    print(f"\n  {C_ACTION}[ 2. Motion Ratios (Shock Travel / Wheel Travel) ]{OpenDAV_RESET}")
-    print(f"  {C_INFO}Hint: If unknown, leave as 1.0. For modern GTs/Prototypes, usually 0.7 - 0.95.{OpenDAV_RESET}")
-    for corner in ['FL', 'FR', 'RL', 'RR']:
-        current_mr = model['motion_ratios'].get(corner, 1.0)
-        while True:
-            inp = input(f"    {corner} Motion Ratio (Current: {current_mr:.3f}): ").strip()
-            if not inp:
-                model['motion_ratios'][corner] = current_mr
-                break
-            try:
-                val = float(inp)
-                if val <= 0 or val > 5:
-                    print(f"    {C_DANGER}[!] Invalid ratio. Usually between 0.1 and 2.0.{OpenDAV_RESET}")
-                    continue
-                model['motion_ratios'][corner] = val
+                model['spring_rate_npm'][corner] = val * 1000.0
                 break
             except ValueError:
                 print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
+
+    # 2. Motion Ratios (Usually not applicable for Heave/Roll in this simplified model, but we keep it for consistency)
+    if not is_prototype:
+        print(f"\n  {C_ACTION}[ 2. Motion Ratios (Shock Travel / Wheel Travel) ]{OpenDAV_RESET}")
+        for corner in ['FL', 'FR', 'RL', 'RR']:
+            current_mr = model['motion_ratios'].get(corner, 0.82 if 'F' in corner else 0.75)
+            while True:
+                inp = input(f"    {corner} Motion Ratio (Current: {current_mr:.3f}): ").strip()
+                if not inp:
+                    model['motion_ratios'][corner] = current_mr
+                    break
+                try:
+                    val = float(inp)
+                    model['motion_ratios'][corner] = val
+                    break
+                except ValueError:
+                    print(f"    {C_DANGER}[!] Invalid number.{OpenDAV_RESET}")
+    else:
+        # Default MR for prototypes is usually 1.0 because the rocker math is internal
+        model['motion_ratios'] = {"FL": 1.0, "FR": 1.0, "RL": 1.0, "RR": 1.0}
+
 
 
     # 3. Static Mass
