@@ -895,8 +895,9 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         print("  [!] Insufficient data points for animation (need > 50).")
                         continue
 
-                    print("  [+] Building High-Fidelity L4 Animation (.mp4)...")
+                                        print("  [+] Building High-Fidelity L4 Animation (.mp4)...")
                     print("      This may take several minutes depending on segment length.")
+                    print("      (Note: Requires 'ffmpeg' installed and added to system PATH for .mp4)")
                     
                     import matplotlib.pyplot as plt
                     import matplotlib.animation as animation
