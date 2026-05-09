@@ -71,6 +71,39 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             
             lat_g = data[lat_g_ch].data
             long_g = data[long_g_ch].data
+
+            # >>> NEW AERO GATING & SMOOTHING LOGIC <<<
+            from scipy.signal import savgol_filter
+            time_arr = data[channels['time']].data
+            
+            # 1. Velocity Gate (dRH/dt)
+            # Calculate instantaneous suspension velocity (mm/s).
+            v_fl = np.gradient(fl_rh, time_arr)
+            v_fr = np.gradient(fr_rh, time_arr)
+            v_rl = np.gradient(rl_rh, time_arr)
+            v_rr = np.gradient(rr_rh, time_arr)
+            
+            # Threshold: 185 mm/s (from empirical Spa data)
+            bump_mask = (np.abs(v_fl) < 185.0) & (np.abs(v_fr) < 185.0) & (np.abs(v_rl) < 185.0) & (np.abs(v_rr) < 185.0)
+            
+            # 2. Savitzky-Golay Smoothing
+            # Apply a 31-frame (~0.5s at 60Hz), 3rd order polynomial filter
+            window = 31
+            poly = 3
+            if len(fl_rh) > window:
+                fl_rh = savgol_filter(fl_rh, window_length=window, polyorder=poly)
+                fr_rh = savgol_filter(fr_rh, window_length=window, polyorder=poly)
+                rl_rh = savgol_filter(rl_rh, window_length=window, polyorder=poly)
+                rr_rh = savgol_filter(rr_rh, window_length=window, polyorder=poly)
+                
+                fl_l = savgol_filter(fl_l, window_length=window, polyorder=poly)
+                fr_l = savgol_filter(fr_l, window_length=window, polyorder=poly)
+                rl_l = savgol_filter(rl_l, window_length=window, polyorder=poly)
+                rr_l = savgol_filter(rr_l, window_length=window, polyorder=poly)
+            
+            rejected_pct = (1.0 - (np.sum(bump_mask) / len(bump_mask))) * 100.0
+            print(f"  [i] Applied Aero Gating: Removed {rejected_pct:.1f}% of data due to high-frequency suspension velocity (>185 mm/s).")
+            # ---------------------------------------------------------
             # Extract Vertical G if available (1G is standard gravity in iRacing telemetry, usually offset to 0 or 1 depending on the channel)
             vert_g = np.ones_like(lat_g)
             if 'VertAccel' in data:
@@ -127,7 +160,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
 
             # 2. Filter for v > 100 km/h
-            aero_mask = (speed_kmh > 100.0)
+            aero_mask = (speed_kmh > 100.0) & bump_mask
             
             f_rh = ((fl_rh + fr_rh) / 2.0)[aero_mask]
             r_rh = ((rl_rh + rr_rh) / 2.0)[aero_mask]
