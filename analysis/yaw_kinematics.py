@@ -1,8 +1,13 @@
+import datetime
 from scipy.spatial import cKDTree
 import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
+import matplotlib.tri as mtri
+import matplotx
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -192,7 +197,6 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                     
                 if ans in ['open l1', 'print l1']:
                     if not headless: print("  [+] Building Handling Balance Graph...")
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
@@ -245,7 +249,6 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                         if gui_mode == 3: show_ctk_graph(fig, "OpenDAV - Handling Balance")
                         else: plt.show()
                     else:
-                        import datetime
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
                         file_out = f"Yaw_L1_{timestamp}_{file_basename}.png"
                         if '<' in ans_raw:
@@ -322,8 +325,6 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                     s2 = extract_setup_local(r_metadata)
                     deltas = [f"{k.split('.')[-1]} [{s1[k]}->{s2[k]}]" for k in set(s1.keys()) if s1.get(k) != s2.get(k)]
                     delta_title = "SETUP SHIFTS: " + ", ".join(deltas[:4]) + ("..." if len(deltas)>4 else "")
-
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8), num='OpenDAV - L2 Handling Comparison')
                     
@@ -356,7 +357,6 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
                         if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - L2 Handling Comparison")
                         else: plt.show()
                     elif ans == 'print l2':
-                        import datetime
                         ts = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
                         file_out = f"Yaw_L2_{ts}_{file_basename}.png"
                         if '<' in ans_raw:

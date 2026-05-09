@@ -4,6 +4,10 @@ import datetime
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
+import matplotlib.tri as mtri
+import matplotx
 import plotly.graph_objects as go
 from scipy.interpolate import Rbf
 from scipy.spatial import ConvexHull, cKDTree
@@ -281,10 +285,6 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     
                 if ans == 'open l1':
                     print("  [+] Building interactive simulation dashboard... (Close the window to continue)")
-                    import matplotx
-                    import matplotlib.tri as mtri
-                    from mpl_toolkits.mplot3d import Axes3D
-
                     plt.style.use(matplotx.styles.aura['dark'])
                     fig = plt.figure(figsize=(16, 8), num='OpenDAV - 3D Aero Simulation')
                     
@@ -347,9 +347,6 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                         else:
                             f_s, r_s, z_s = f_data, r_data, z_data
                         try:
-                            import matplotlib.ticker as ticker
-                            import matplotx
-                            import matplotlib.tri as mtri
                             plt.style.use(matplotx.styles.aura['dark'])
                             plt.figure(figsize=(10, 8))
                             triang = mtri.Triangulation(f_s, r_s)
@@ -607,10 +604,6 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                     delta_title = "\n".join(textwrap.wrap(delta_title, 80))
                     
                     print("  [+] Launching L2 Comparison...")
-                    import matplotx
-                    import matplotlib.ticker as ticker
-                    import matplotlib.tri as mtri
-                    
                     plt.style.use(matplotx.styles.aura['dark'])
                     fig = plt.figure(figsize=(20, 9), num='OpenDAV - L2 Aero Comparison')
                     
@@ -752,7 +745,6 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                                 target_ab = 45.0
                     
                     print("  [+] Building Target Delta Analyzer Graph (L3)...")
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],

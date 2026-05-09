@@ -3,6 +3,10 @@ import sys
 import numpy as np
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
+import matplotlib.tri as mtri
+import matplotx
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -238,7 +242,6 @@ def run_suspension_histograms(sessions):
 
                 else:
                     # Matplotlib / CTK
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],

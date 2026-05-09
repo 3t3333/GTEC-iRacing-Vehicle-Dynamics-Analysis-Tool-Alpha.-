@@ -4,6 +4,11 @@ import datetime
 import numpy as np
 import yaml
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import matplotlib.tri as mtri
+import matplotlib.animation as animation
+from matplotlib.gridspec import GridSpec
+import matplotx
 import plotly.graph_objects as go
 from scipy.interpolate import Rbf
 from scipy.spatial import ConvexHull, cKDTree
@@ -360,8 +365,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                     
                 if ans == 'open l1':
                     print("  [+] Building interactive simulation dashboard... (Close the window to continue)")
-                    import matplotx
-                    import matplotlib.tri as mtri
                     from mpl_toolkits.mplot3d import Axes3D
 
                     plt.style.use(matplotx.styles.aura['dark'])
@@ -427,9 +430,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         else:
                             f_s, r_s, z_s = f_data, r_data, z_data
                         try:
-                            import matplotlib.ticker as ticker
-                            import matplotx
-                            import matplotlib.tri as mtri
                             plt.style.use(matplotx.styles.aura['dark'])
                             plt.figure(figsize=(10, 8))
                             triang = mtri.Triangulation(f_s, r_s)
@@ -684,9 +684,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                     delta_title = "\n".join(textwrap.wrap(delta_title, 80))
                     
                     print("  [+] Launching L2 Comparison...")
-                    import matplotx
-                    import matplotlib.ticker as ticker
-                    import matplotlib.tri as mtri
                     
                     plt.style.use(matplotx.styles.aura['dark'])
                     fig = plt.figure(figsize=(20, 9), num='OpenDAV - L2 Downforce Comparison')
@@ -807,12 +804,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             continue
 
                         print("  [+] Building Full L3 Engineering Dashboard...")
-                        import matplotlib.pyplot as plt
-                        from matplotlib.gridspec import GridSpec
-                        import matplotlib.tri as mtri
-                        import matplotx
-                        from scipy.spatial import cKDTree
-                        import datetime
 
                         plt.style.use(matplotx.styles.aura['dark'])
                         fig = plt.figure(figsize=(16, 10), num='OpenDAV - L3 Dashboard')
@@ -957,13 +948,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         print(f"  [+] Resampled {len(d_f)} points to {len(d_grid)} spatial frames (2m steps).")
                         print("  [+] Building High-Fidelity L4 Distance Animation (.mp4)...")
                         
-                        import matplotlib.pyplot as plt
-                        import matplotlib.animation as animation
-                        from matplotlib.gridspec import GridSpec
-                        import matplotlib.tri as mtri
-                        from scipy.spatial import cKDTree
-                        import matplotx
-                        import datetime
 
                         plt.style.use(matplotx.styles.aura['dark'])
                         fig = plt.figure(figsize=(16, 9), num='OpenDAV - L4 Animation')

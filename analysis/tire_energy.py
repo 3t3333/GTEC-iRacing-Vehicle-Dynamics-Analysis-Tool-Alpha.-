@@ -4,6 +4,10 @@ import sys
 import numpy as np
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
+import matplotlib.tri as mtri
+import matplotx
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -189,7 +193,6 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                     
                 if ans in ['open l1', 'print l1']:
                     print("  [+] Building Tire Work Profiler Graph...")
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
@@ -281,7 +284,6 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                 
                 elif ans in ['open l3', 'print l3']:
                     print("  [+] Building Tire Sector Line Graph (L3)...")
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
@@ -382,7 +384,6 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
 
                 elif ans in ['open l2', 'print l2']:
                     print("  [+] Building Tire Sector Analysis Graph...")
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
@@ -500,8 +501,6 @@ def run_tire_energy_profiler(sessions, headless=False, headless_config=None):
                         ("Sector 3", s3_m, "S3"),
                         ("Full Lap", full_m, "Full")
                     ]
-                    
-                    import matplotx
                     plt.style.use(matplotx.styles.aura['dark'])
                     plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],

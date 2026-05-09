@@ -1,8 +1,13 @@
+import datetime
 import os
 import sys
 import numpy as np
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.gridspec import GridSpec
+import matplotlib.tri as mtri
+import matplotx
 import plotly.express as px
 import plotly.graph_objects as go
 import ui.splash as splash
@@ -268,7 +273,6 @@ def run_sector_tire_analysis(sessions):
                             )
                             fig.show()
                         else:
-                            import matplotx
                             plt.style.use(matplotx.styles.aura['dark'])
                             plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
@@ -304,7 +308,6 @@ def run_sector_tire_analysis(sessions):
                                 plt.show()
                                 
                     elif ans == 'print l3':
-                        import datetime
                         print("  [+] Exporting L3 Layout...")
                         timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
                         export_dir = f"exports/L3_{timestamp}"
@@ -312,8 +315,6 @@ def run_sector_tire_analysis(sessions):
                         
                         safe_scope = scope_text.replace(' ', '_').replace('.', '_')
                         export_path = os.path.join(export_dir, f"L3_{safe_scope}_{file_basename}.png")
-                        
-                        import matplotx
                         plt.style.use(matplotx.styles.aura['dark'])
                         plt.rcParams.update({
                         'font.family': ['Consolas', 'DejaVu Sans Mono', 'monospace'],
