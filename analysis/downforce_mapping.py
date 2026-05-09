@@ -985,8 +985,25 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         r_min_lim, r_max_lim = np.min(r_rh_res)-2, np.max(r_rh_res)+2
                         
                         fig.suptitle(f"OpenDAV L4 Animation (Spatially Resampled): {file_basename}", fontsize=15, color='white', y=0.98)
+                        
+                        # HUD / TICKER SETUP
+                        y_pos_head = 0.93
+                        y_pos_val = 0.90
+                        
+                        fig.text(0.12, y_pos_head, "DISTANCE (m)", color="white", fontsize=10, ha="center", alpha=0.5, fontfamily='monospace')
+                        fig.text(0.32, y_pos_head, "DOWNFORCE (N)", color="white", fontsize=10, ha="center", alpha=0.5, fontfamily='monospace')
+                        fig.text(0.52, y_pos_head, "FRONT RH (mm)", color="#0ea5e9", fontsize=10, ha="center", alpha=0.5, fontfamily='monospace')
+                        fig.text(0.72, y_pos_head, "REAR RH (mm)", color="#D2751D", fontsize=10, ha="center", alpha=0.5, fontfamily='monospace')
+                        fig.text(0.88, y_pos_head, "LATERAL G", color="#A020F0", fontsize=10, ha="center", alpha=0.5, fontfamily='monospace')
+
+                        val_dist = fig.text(0.12, y_pos_val, "0.0", color="white", fontsize=14, ha="center", fontweight='bold', fontfamily='monospace')
+                        val_df = fig.text(0.32, y_pos_val, "0", color="white", fontsize=14, ha="center", fontweight='bold', fontfamily='monospace')
+                        val_frh = fig.text(0.52, y_pos_val, "0.0", color="#0ea5e9", fontsize=14, ha="center", fontweight='bold', fontfamily='monospace')
+                        val_rrh = fig.text(0.72, y_pos_val, "0.0", color="#D2751D", fontsize=14, ha="center", fontweight='bold', fontfamily='monospace')
+                        val_latg = fig.text(0.88, y_pos_val, "0.00", color="#A020F0", fontsize=14, ha="center", fontweight='bold', fontfamily='monospace')
+
                         plt.tight_layout()
-                        fig.subplots_adjust(top=0.9)
+                        fig.subplots_adjust(top=0.83) # Make room for the ticker
 
                         window_size = 75 # Since we resampled to 2m, 75 frames = 150m window. Sane.
                         
@@ -1024,7 +1041,14 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             active_r_dot.set_data([d_plot[frame]], [r_rh_res[frame]])
                             g_dot.set_data([lat_res[frame]], [long_res[frame]])
                             
-                            return ax_map, playhead, active_f_dot, active_r_dot, g_dot
+                            # Update HUD
+                            val_dist.set_text(f"{d_plot[frame]:.1f}")
+                            val_df.set_text(f"{z_res[frame]:.0f}")
+                            val_frh.set_text(f"{f_rh_res[frame]:.1f}")
+                            val_rrh.set_text(f"{r_rh_res[frame]:.1f}")
+                            val_latg.set_text(f"{lat_res[frame]:.2f}")
+                            
+                            return ax_map, playhead, active_f_dot, active_r_dot, g_dot, val_dist, val_df, val_frh, val_rrh, val_latg
 
                         # Render at 30 FPS. 
                         # If d_grid is long, this will take a bit.
