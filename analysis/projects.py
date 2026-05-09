@@ -313,12 +313,33 @@ def run_manual_analysis(project_name, state):
                 dist_raw = data[channels['dist']].data
                 lap_arr = data[channels['lap']].data
                 if len(dist_raw) > 0 and len(lap_arr) > 0:
-                    first_lap = selected_laps[0] if selected_laps else np.unique(lap_arr)[0]
-                    lap_mask = (lap_arr == first_lap)
-                    if np.any(lap_mask):
-                        max_dist = np.max(dist_raw[lap_mask]) - np.min(dist_raw[lap_mask])
 
-            distance_bounds = get_sector_choice(max_dist, sectors_pct)
+            speed_ch = next((ch for ch in ['Speed', 'virt_body_v', 'Ground Speed'] if ch in data), None)
+            speed_trace = None
+            if speed_ch and 'dist' in channels and channels['dist'] in data and 'lap' in channels and channels['lap'] in data:
+                dist_raw = data[channels['dist']].data
+                lap_arr = data[channels['lap']].data
+                first_lap = selected_laps[0] if selected_laps else np.unique(lap_arr)[0]
+                lap_mask = (lap_arr == first_lap)
+                if np.any(lap_mask):
+                    max_dist = np.max(dist_raw[lap_mask]) - np.min(dist_raw[lap_mask])
+                    speed_raw = data[speed_ch].data[lap_mask]
+                    dist_lap = dist_raw[lap_mask]
+                    # Sort by distance
+                    sort_idx = np.argsort(dist_lap)
+                    speed_raw = speed_raw[sort_idx]
+                    dist_lap = dist_lap[sort_idx]
+                    # Convert to kmh
+                    if np.max(speed_raw) < 150: speed_raw *= 3.6
+                    # Subsample or interpolate speed trace to 80 points (bar_width)
+                    try:
+                        import numpy as np
+                        d_grid = np.linspace(dist_lap[0], dist_lap[-1], 80)
+                        speed_trace = np.interp(d_grid, dist_lap, speed_raw)
+                    except:
+                        pass
+            
+            distance_bounds = get_sector_choice(max_dist, sectors_pct, speed_trace)
             if distance_bounds is None:
                 continue
                 
