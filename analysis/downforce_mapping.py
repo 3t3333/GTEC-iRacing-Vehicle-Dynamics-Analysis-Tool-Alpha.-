@@ -862,164 +862,169 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
 
                 elif ans in ['print l4']:
-                    # 1. Base Parallel Arrays (Filtered)
-                    mask_base = aero_mask.copy()
-                    mask_base[aero_mask] &= valid_df_mask
-                    
-                    time_raw = data[channels['time']].data
-                    dist_raw = data[channels['dist']].data if channels.get('dist') in data else np.zeros_like(time_raw)
-                    lap_raw = data[channels['lap']].data if channels.get('lap') in data else np.zeros_like(time_raw)
-                    
-                    final_mask = mask_base.copy()
-                    if 'distance_bounds' in session and session['distance_bounds'] is not None:
-                        b_min, b_max = session['distance_bounds']
-                        final_mask &= (dist_raw >= b_min) & (dist_raw <= b_max)
-                    if 'selected_laps' in md and md['selected_laps']:
-                        final_mask &= np.isin(lap_raw, md['selected_laps'])
-
-                    f_rh_f = ((data[fl_ch].data + data[fr_ch].data) / 2.0 * 1000)[final_mask]
-                    r_rh_f = ((data[rl_ch].data + data[rr_ch].data) / 2.0 * 1000)[final_mask]
-                    
-                    l_fl = data[fl_load].data[final_mask]
-                    l_fr = data[fr_load].data[final_mask]
-                    l_rl = data[rl_load].data[final_mask]
-                    l_rr = data[rr_load].data[final_mask]
-                    v_g_f = vert_g[final_mask]
-                    
-                    z_f = (l_fl + l_fr + l_rl + l_rr) - (static_weight * v_g_f)
-                    lat_f = lat_g[final_mask]
-                    long_f = long_g[final_mask]
-                    time_f = time_raw[final_mask]
-
-                    if len(f_rh_f) < 50:
-                        print("  [!] Insufficient data points for animation (need > 50).")
-                        continue
-
-                                        print("  [+] Building High-Fidelity L4 Animation (.mp4)...")
-                    print("      This may take several minutes depending on segment length.")
-                    print("      (Note: Requires 'ffmpeg' installed and added to system PATH for .mp4)")
-                    
-                    import matplotlib.pyplot as plt
-                    import matplotlib.animation as animation
-                    from matplotlib.gridspec import GridSpec
-                    import matplotlib.tri as mtri
-                    from scipy.spatial import cKDTree
-                    import matplotx
-                    import datetime
-
-                    plt.style.use(matplotx.styles.aura['dark'])
-                    fig = plt.figure(figsize=(16, 9), num='OpenDAV - L4 Animation')
-                    gs = GridSpec(2, 2, height_ratios=[2, 1], width_ratios=[1, 1.2], figure=fig)
-                    
-                    ax_g = fig.add_subplot(gs[0, 0])
-                    ax_map = fig.add_subplot(gs[0, 1])
-                    ax_rh = fig.add_subplot(gs[1, :])
-
-                    time_plot = time_f - time_f[0] if len(time_f) > 0 else time_f
-                    
-                    # Static setups
-                    ax_rh.plot(time_plot, f_rh_f, c='#0ea5e9', label="Front RH", lw=1.5, alpha=0.5)
-                    ax_rh.plot(time_plot, r_rh_f, c='#D2751D', label="Rear RH", lw=1.5, alpha=0.5)
-                    ax_rh.set_xlim(time_plot[0], time_plot[-1])
-                    ax_rh.set_ylim(min(min(f_rh_f), min(r_rh_f)) - 5, max(max(f_rh_f), max(r_rh_f)) + 5)
-                    ax_rh.set_title("Ride Height Envelope", fontsize=11, pad=10)
-                    ax_rh.set_xlabel("Time (s)"); ax_rh.set_ylabel("RH (mm)")
-                    ax_rh.grid(True, alpha=0.1)
-                    
-                    playhead = ax_rh.axvline(time_plot[0], color='white', lw=2, zorder=10)
-                    active_f_dot, = ax_rh.plot([], [], 'o', color='white', markersize=8, zorder=11)
-                    active_r_dot, = ax_rh.plot([], [], 'o', color='white', markersize=8, zorder=11)
-
-                    ax_g.set_xlim([-2.5, 2.5]); ax_g.set_ylim([-2.5, 2.5])
-                    ax_g.set_aspect('equal')
-                    ax_g.grid(True, alpha=0.1)
-                    ax_g.set_title("Friction Circle (G-Plot)", fontsize=11, pad=10)
-                    ax_g.set_xlabel("Lat G"); ax_g.set_ylabel("Long G")
-                    
-                    # Full G-plot in background
-                    ax_g.scatter(lat_f, long_f, c='#0ea5e9', s=5, alpha=0.1, edgecolors='none')
-                    g_dot, = ax_g.plot([], [], 'o', color='white', markersize=10, zorder=10)
-                    
-                    # Setup Map limits (inverted)
-                    f_min, f_max = min(f_rh_f)-2, max(f_rh_f)+2
-                    r_min, r_max = min(r_rh_f)-2, max(r_rh_f)+2
-                    
-                    ax_map.set_xlim(f_max, f_min) # Inverted
-                    ax_map.set_ylim(r_max, r_min) # Inverted
-                    ax_map.set_title("Dynamic Aero Map (150-pt window)", fontsize=11, pad=10)
-                    ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
-                    
-                    fig.suptitle(f"OpenDAV L4 Animation: {file_basename}", fontsize=15, color='white', y=0.98)
-                    plt.tight_layout()
-                    fig.subplots_adjust(top=0.9)
-
-                    window_size = 150
-                    
-                    def update(frame):
-                        start_idx = max(0, frame - window_size)
-                        end_idx = frame + 1
-                        
-                        ax_map.clear()
-                        ax_map.set_xlim(f_max, f_min)
-                        ax_map.set_ylim(r_max, r_min)
-                        ax_map.set_title("Dynamic Aero Contour (150-pt window)", fontsize=11, pad=10)
-                        ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
-                        
-                        w_f = f_rh_f[start_idx:end_idx]
-                        w_r = r_rh_f[start_idx:end_idx]
-                        w_z = z_f[start_idx:end_idx]
-                        
-                        if len(w_f) > 5:
-                            try:
-                                triang = mtri.Triangulation(w_f, w_r)
-                                c_x = np.mean(w_f[triang.triangles], axis=1)
-                                c_y = np.mean(w_r[triang.triangles], axis=1)
-                                tree = cKDTree(np.column_stack((w_f, w_r)))
-                                distances, _ = tree.query(np.column_stack((c_x, c_y)))
-                                triang.set_mask(distances > (max(w_f)-min(w_f)) * 0.1)
-                                
-                                ax_map.tricontourf(triang, w_z, levels=10, cmap=opendav_cmap, extend='both', alpha=0.9)
-                                ax_map.scatter(w_f, w_r, c='white', s=2, alpha=0.3)
-                            except: pass
-                            
-                        # Active dots
-                        ax_map.scatter(f_rh_f[frame], r_rh_f[frame], c='red', s=60, edgecolors='white', zorder=10)
-                        
-                        playhead.set_xdata([time_plot[frame], time_plot[frame]])
-                        active_f_dot.set_data([time_plot[frame]], [f_rh_f[frame]])
-                        active_r_dot.set_data([time_plot[frame]], [r_rh_f[frame]])
-                        
-                        g_dot.set_data([lat_f[frame]], [long_f[frame]])
-                        
-                        return ax_map, playhead, active_f_dot, active_r_dot, g_dot
-
-                    # Determine frame step to keep render times sane. Target ~30fps for video.
-                    # Telemetry is usually 60Hz. So step=2 gives 30fps.
-                    frames_idx = range(0, len(time_plot), 2)
-                    
-                    ani = animation.FuncAnimation(fig, update, frames=frames_idx, blit=False)
-                    
-                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                    export_folder = os.path.join("exports", f"F8L4_{ts}")
-                    os.makedirs(export_folder, exist_ok=True)
-                    out_file = os.path.join(export_folder, f"L4_Animation_{file_basename}.mp4")
-                    
                     try:
-                        print(f"      Rendering MP4 (approx {(len(frames_idx)/30):.1f} sec video)...")
-                        ani.save(out_file, writer='ffmpeg', fps=30)
-                        print(f"  [+] Saved L4 Animation to: {out_file}")
-                    except Exception as e:
-                        print(f"  [!] Failed to save MP4: {e}")
-                        print(f"      Attempting to fallback to GIF...")
-                        try:
-                            out_gif = out_file.replace('.mp4', '.gif')
-                            ani.save(out_gif, writer='pillow', fps=15)
-                            print(f"  [+] Saved fallback GIF to: {out_gif}")
-                        except Exception as e2:
-                            print(f"  [!] Fallback failed: {e2}")
+                        # 1. Base Parallel Arrays (Filtered)
+                        mask_base = aero_mask.copy()
+                        mask_base[aero_mask] &= valid_df_mask
+                        
+                        dist_raw = data[channels['dist']].data if channels.get('dist') in data else np.zeros(len(mask_base))
+                        lap_raw = data[channels['lap']].data if channels.get('lap') in data else np.zeros(len(mask_base))
+                        
+                        final_mask = mask_base.copy()
+                        if 'distance_bounds' in session and session['distance_bounds'] is not None:
+                            b_min, b_max = session['distance_bounds']
+                            final_mask &= (dist_raw >= b_min) & (dist_raw <= b_max)
+                        if 'selected_laps' in md and md['selected_laps']:
+                            final_mask &= np.isin(lap_raw, md['selected_laps'])
+
+                        # RAW DATA EXTRACT for the selected window
+                        d_f = dist_raw[final_mask]
+                        # Ensure distance is monotonic for interpolation
+                        sort_idx = np.argsort(d_f)
+                        d_f = d_f[sort_idx]
+                        
+                        f_rh_f = ((data[fl_ch].data + data[fr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
+                        r_rh_f = ((data[rl_ch].data + data[rr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
+                        
+                        # Use the already calculated and scaled corner loads
+                        l_fl = data[fl_load].data[final_mask][sort_idx]
+                        l_fr = data[fr_load].data[final_mask][sort_idx]
+                        l_rl = data[rl_load].data[final_mask][sort_idx]
+                        l_rr = data[rr_load].data[final_mask][sort_idx]
+                        v_g_f = vert_g[final_mask][sort_idx]
+                        
+                        z_f = (l_fl + l_fr + l_rl + l_rr) - (static_weight * v_g_f)
+                        lat_f = lat_g[final_mask][sort_idx]
+                        long_f = long_g[final_mask][sort_idx]
+
+                        if len(d_f) < 50:
+                            print("  [!] Insufficient data points for animation.")
+                            continue
+
+                        # 2. DISTANCE RESAMPLING (The Fix for Jumping/Timing)
+                        # We create a perfect 1-meter grid across the selection
+                        d_min, d_max = d_f[0], d_f[-1]
+                        # Target ~15 frames per track-second, but let's just do a fixed count 
+                        # to ensure the video duration is consistent.
+                        # For 30 seconds at 30 FPS, we need 900 frames.
+                        # Let's do 1 frame every 2 meters of track.
+                        d_grid = np.arange(d_min, d_max, 2.0)
+                        
+                        # Interpolate everything onto the distance grid
+                        f_rh_res = np.interp(d_grid, d_f, f_rh_f)
+                        r_rh_res = np.interp(d_grid, d_f, r_rh_f)
+                        z_res = np.interp(d_grid, d_f, z_f)
+                        lat_res = np.interp(d_grid, d_f, lat_f)
+                        long_res = np.interp(d_grid, d_f, long_f)
+
+                        print(f"  [+] Resampled {len(d_f)} points to {len(d_grid)} spatial frames (2m steps).")
+                        print("  [+] Building High-Fidelity L4 Distance Animation (.mp4)...")
+                        
+                        import matplotlib.pyplot as plt
+                        import matplotlib.animation as animation
+                        from matplotlib.gridspec import GridSpec
+                        import matplotlib.tri as mtri
+                        from scipy.spatial import cKDTree
+                        import matplotx
+                        import datetime
+
+                        plt.style.use(matplotx.styles.aura['dark'])
+                        fig = plt.figure(figsize=(16, 9), num='OpenDAV - L4 Animation')
+                        gs = GridSpec(2, 2, height_ratios=[2, 1], width_ratios=[1, 1.2], figure=fig)
+                        
+                        ax_g = fig.add_subplot(gs[0, 0])
+                        ax_map = fig.add_subplot(gs[0, 1])
+                        ax_rh = fig.add_subplot(gs[1, :])
+
+                        # Static Ride Height Plot
+                        d_plot = d_grid - d_grid[0]
+                        ax_rh.plot(d_plot, f_rh_res, c='#0ea5e9', label="Front RH", lw=1.5, alpha=0.4)
+                        ax_rh.plot(d_plot, r_rh_res, c='#D2751D', label="Rear RH", lw=1.5, alpha=0.4)
+                        ax_rh.set_xlim(0, d_plot[-1])
+                        ax_rh.set_ylim(min(np.min(f_rh_res), np.min(r_rh_res)) - 5, max(np.max(f_rh_res), np.max(r_rh_res)) + 5)
+                        ax_rh.set_title("Ride Height / Distance Envelope", fontsize=11, pad=10)
+                        ax_rh.set_xlabel("Distance (m)"); ax_rh.set_ylabel("RH (mm)")
+                        ax_rh.grid(True, alpha=0.1)
+                        
+                        playhead = ax_rh.axvline(0, color='white', lw=2, zorder=10)
+                        active_f_dot, = ax_rh.plot([], [], 'o', color='white', markersize=8, zorder=11)
+                        active_r_dot, = ax_rh.plot([], [], 'o', color='white', markersize=8, zorder=11)
+
+                        # G-Plot Setup
+                        ax_g.set_xlim([-2.5, 2.5]); ax_g.set_ylim([-2.5, 2.5])
+                        ax_g.set_aspect('equal')
+                        ax_g.grid(True, alpha=0.1)
+                        ax_g.set_title("Friction Circle (G-Plot)", fontsize=11, pad=10)
+                        ax_g.set_xlabel("Lat G"); ax_g.set_ylabel("Long G")
+                        ax_g.scatter(lat_res, long_res, c='#0ea5e9', s=5, alpha=0.1, edgecolors='none')
+                        g_dot, = ax_g.plot([], [], 'o', color='white', markersize=10, zorder=12) # Active point is WHITE
+                        
+                        # Map Limits
+                        f_min_lim, f_max_lim = np.min(f_rh_res)-2, np.max(f_rh_res)+2
+                        r_min_lim, r_max_lim = np.min(r_rh_res)-2, np.max(r_rh_res)+2
+                        
+                        fig.suptitle(f"OpenDAV L4 Animation (Spatially Resampled): {file_basename}", fontsize=15, color='white', y=0.98)
+                        plt.tight_layout()
+                        fig.subplots_adjust(top=0.9)
+
+                        window_size = 75 # Since we resampled to 2m, 75 frames = 150m window. Sane.
+                        
+                        def update(frame):
+                            start_idx = max(0, frame - window_size)
+                            end_idx = frame + 1
                             
-                    plt.close(fig)
-                    if headless: break
+                            ax_map.clear()
+                            ax_map.set_xlim(f_max_lim, f_min_lim) # Inverted
+                            ax_map.set_ylim(r_max_lim, r_min_lim) # Inverted
+                            ax_map.set_title(f"Dynamic Aero Map (Window: {window_size*2}m)", fontsize=11, pad=10)
+                            ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
+                            
+                            w_f = f_rh_res[start_idx:end_idx]
+                            w_r = r_rh_res[start_idx:end_idx]
+                            w_z = z_res[start_idx:end_idx]
+                            
+                            if len(w_f) > 5:
+                                try:
+                                    triang = mtri.Triangulation(w_f, w_r)
+                                    c_xy = np.column_stack((np.mean(w_f[triang.triangles], axis=1), np.mean(w_r[triang.triangles], axis=1)))
+                                    tree = cKDTree(np.column_stack((w_f, w_r)))
+                                    dist, _ = tree.query(c_xy)
+                                    triang.set_mask(dist > (np.max(w_f)-np.min(w_f)) * 0.15)
+                                    ax_map.tricontourf(triang, w_z, levels=10, cmap=opendav_cmap, extend='both', alpha=0.9)
+                                    ax_map.scatter(w_f, w_r, c='white', s=2, alpha=0.3)
+                                except: pass
+                            
+                            # Active dot on map
+                            ax_map.scatter(f_rh_res[frame], r_rh_res[frame], c='red', s=60, edgecolors='white', zorder=10)
+                            
+                            # Move Playheads
+                            playhead.set_xdata([d_plot[frame], d_plot[frame]])
+                            active_f_dot.set_data([d_plot[frame]], [f_rh_res[frame]])
+                            active_r_dot.set_data([d_plot[frame]], [r_rh_res[frame]])
+                            g_dot.set_data([lat_res[frame]], [long_res[frame]])
+                            
+                            return ax_map, playhead, active_f_dot, active_r_dot, g_dot
+
+                        # Render at 30 FPS. 
+                        # If d_grid is long, this will take a bit.
+                        ani = animation.FuncAnimation(fig, update, frames=len(d_grid), blit=False)
+                        
+                        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+                        export_folder = os.path.join("exports", f"F8L4_{ts}")
+                        os.makedirs(export_folder, exist_ok=True)
+                        out_file = os.path.join(export_folder, f"L4_Animation_{file_basename}.mp4")
+                        
+                        print(f"      Rendering MP4 ({len(d_grid)} frames @ 30fps)...")
+                        ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
+                        print(f"  [+] Saved L4 Animation to: {out_file}")
+                        
+                        plt.close(fig)
+                        if headless: break
+                    except Exception as e:
+                        print(f"  [!] ERROR in L4 Dashboard: {e}")
+                        import traceback; traceback.print_exc()
+                        if headless: break
+
                 else:
                     print("  [!] Invalid command. Try 'open L1/L2', 'print L1/L2', or 'p'.")
 
