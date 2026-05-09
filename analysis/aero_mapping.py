@@ -68,11 +68,15 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             time_arr = data[channels['time']].data
             
             # 1. Velocity Gate (dRH/dt)
+            # Safely calculate average dt to avoid np.gradient divide-by-zero on duplicate timestamps
+            dt_diffs = np.diff(time_arr)
+            dt = np.median(dt_diffs[dt_diffs > 0]) if np.any(dt_diffs > 0) else 0.0166
+            
             # Calculate instantaneous suspension velocity (mm/s).
-            v_fl = np.gradient(fl_rh, time_arr)
-            v_fr = np.gradient(fr_rh, time_arr)
-            v_rl = np.gradient(rl_rh, time_arr)
-            v_rr = np.gradient(rr_rh, time_arr)
+            v_fl = np.gradient(fl_rh) / dt
+            v_fr = np.gradient(fr_rh) / dt
+            v_rl = np.gradient(rl_rh) / dt
+            v_rr = np.gradient(rr_rh) / dt
             
             # Threshold: 185 mm/s (from empirical Spa data)
             bump_mask = (np.abs(v_fl) < 185.0) & (np.abs(v_fr) < 185.0) & (np.abs(v_rl) < 185.0) & (np.abs(v_rr) < 185.0)
