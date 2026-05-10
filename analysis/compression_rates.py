@@ -153,12 +153,126 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
             print(f"  [+] Sector Analyzed.")
             print(f"      Compression Rate: {m:.4f} mm / (km/h)")
             
-            ans_raw = input(f"\n  Select action ('open L1', 'print L1', 'p' to go back < proj): ").strip().lower()
+            ans_raw = input(f"\n  Select action ('open L1/L2', 'print L1/L2', 'p' to go back < proj): ").strip().lower()
             ans = ans_raw.split('<')[0].strip().lower()
             
             if ans == 'p':
                 break
                 
+                        if ans in ['open l2', 'print l2']:
+                try:
+                    # 1. DISTANCE RESAMPLING (For Smooth Animation)
+                    d_min, d_max = s_dist[0], s_dist[-1]
+                    d_grid = np.arange(d_min, d_max, 2.0) # 2-meter spatial steps
+                    
+                    # Interpolate data onto grid
+                    f_rh_res = np.interp(d_grid, s_dist, s_f_rh)
+                    r_rh_res = np.interp(d_grid, s_dist, s_r_rh)
+                    crh_res = np.interp(d_grid, s_dist, crh_smooth)
+                    spd_res = np.interp(d_grid, s_dist, s_speed)
+                    df_res = np.interp(d_grid, s_dist, s_df)
+                    
+                    print(f"  [+] Resampled {len(s_dist)} points to {len(d_grid)} spatial frames.")
+                    print("  [+] Building Animated Compression Analysis (L2)...")
+                    
+                    import matplotlib.animation as animation
+                    plt.style.use(matplotx.styles.aura['dark'])
+                    fig = plt.figure(figsize=(16, 10), num='OpenDAV - Animated Compression Rates')
+                    gs = GridSpec(2, 2, height_ratios=[1, 1], figure=fig)
+                    
+                    ax_map = fig.add_subplot(gs[0, 0])
+                    ax_reg = fig.add_subplot(gs[0, 1])
+                    ax_dist = fig.add_subplot(gs[1, :])
+                    
+                    # PRE-PLOT STATIC ELEMENTS
+                    # Regression Background
+                    ax_reg.scatter(s_speed, crh_smooth, c='white', s=5, alpha=0.1, edgecolors='none')
+                    x_line = np.array([np.min(s_speed), np.max(s_speed)])
+                    y_line = m * x_line + b
+                    ax_reg.plot(x_line, y_line, c='#0ea5e9', lw=2.0, alpha=0.5, label=f"Trend: {m:.4f} mm/kmh")
+                    reg_dot, = ax_reg.plot([], [], 'o', color='white', markersize=10, zorder=10)
+                    ax_reg.set_title("Compression Rate Trend", fontsize=11)
+                    ax_reg.set_xlabel("Speed (km/h)"); ax_reg.set_ylabel("Center RH (mm)")
+                    
+                    # Distance Background
+                    d_plot = d_grid - d_grid[0]
+                    ax_dist.plot(d_plot, df_res, c='#A020F0', lw=1.5, alpha=0.4, label="Downforce")
+                    ax_dist.set_ylabel("Downforce (N)", color='#A020F0')
+                    ax_dist.set_xlabel("Sector Distance (m)")
+                    
+                    ax_spd = ax_dist.twinx()
+                    ax_spd.plot(d_plot, spd_res, c='#32CD32', lw=1.5, alpha=0.4, label="Speed")
+                    ax_spd.set_ylabel("Speed (km/h)", color='#32CD32')
+                    
+                    playhead = ax_dist.axvline(0, color='white', lw=2, zorder=10)
+                    df_dot, = ax_dist.plot([], [], 'o', color='white', markersize=8, zorder=11)
+                    
+                    # Map Limits
+                    f_min_lim, f_max_lim = np.min(f_rh_res)-2, np.max(f_rh_res)+2
+                    r_min_lim, r_max_lim = np.min(r_rh_res)-2, np.max(r_rh_res)+2
+                    
+                    fig.suptitle(f"OpenDAV F12L2: {file_basename}", fontsize=15, color='white', y=0.97)
+                    plt.tight_layout()
+                    fig.subplots_adjust(top=0.9)
+                    
+                    window_size = 75 # 150m window
+                    
+                    def update(frame):
+                        # 1. Update Map (Rolling Window)
+                        start_idx = max(0, frame - window_size)
+                        end_idx = frame + 1
+                        
+                        ax_map.clear()
+                        ax_map.set_xlim(f_max_lim, f_min_lim)
+                        ax_map.set_ylim(r_max_lim, r_min_lim)
+                        ax_map.set_title(f"Dynamic Aero Map (Window: {window_size*2}m)", fontsize=11)
+                        ax_map.set_xlabel("Front RH (mm)"); ax_map.set_ylabel("Rear RH (mm)")
+                        
+                        w_f = f_rh_res[start_idx:end_idx]
+                        w_r = r_rh_res[start_idx:end_idx]
+                        w_z = df_res[start_idx:end_idx]
+                        
+                        if len(w_f) > 5:
+                            try:
+                                triang = mtri.Triangulation(w_f, w_r)
+                                c_xy = np.column_stack((np.mean(w_f[triang.triangles], axis=1), np.mean(w_r[triang.triangles], axis=1)))
+                                tree = cKDTree(np.column_stack((w_f, w_r)))
+                                dist, _ = tree.query(c_xy)
+                                triang.set_mask(dist > (np.max(w_f)-np.min(w_f)) * 0.15)
+                                ax_map.tricontourf(triang, w_z, levels=10, cmap=opendav_cmap, extend='both', alpha=0.9)
+                                ax_map.scatter(w_f, w_r, c='white', s=2, alpha=0.3)
+                            except: pass
+                        
+                        ax_map.scatter(f_rh_res[frame], r_rh_res[frame], c='red', s=60, edgecolors='white', zorder=10)
+                        
+                        # 2. Update Regression Dot
+                        reg_dot.set_data([spd_res[frame]], [crh_res[frame]])
+                        
+                        # 3. Update Playhead
+                        playhead.set_xdata([d_plot[frame], d_plot[frame]])
+                        df_dot.set_data([d_plot[frame]], [df_res[frame]])
+                        
+                        return ax_map, reg_dot, playhead, df_dot
+
+                    ani = animation.FuncAnimation(fig, update, frames=len(d_grid), blit=False)
+                    
+                    if ans == 'open l2':
+                        if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - Animated Compression")
+                        else: plt.show()
+                    elif ans == 'print l2':
+                        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+                        out_dir = os.path.join("exports", f"F12L2_{ts}")
+                        os.makedirs(out_dir, exist_ok=True)
+                        out_file = os.path.join(out_dir, f"L2_Animation_{file_basename}.mp4")
+                        print(f"      Rendering MP4 ({len(d_grid)} frames @ 30fps)...")
+                        ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
+                        print(f"  [+] Saved Animation to: {out_file}")
+                        
+                    plt.close(fig)
+                except Exception as e:
+                    print(f"  [!] Animation Error: {e}")
+                    import traceback; traceback.print_exc()
+
             if ans in ['open l1', 'print l1']:
                 print("  [+] Building Compression Rates Layout (L1)...")
                 plt.style.use(matplotx.styles.aura['dark'])
