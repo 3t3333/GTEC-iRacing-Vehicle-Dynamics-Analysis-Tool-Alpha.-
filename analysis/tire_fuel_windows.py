@@ -96,19 +96,19 @@ def run_tire_fuel_windows(sessions):
             RESET = '\033[0m'
 
             # 1. Primary Window Box
-            print("\n ┌" + "─" * 49 + "┐")
+            print("\n ┌" + "─" * 98 + "┐")
             print(" │ " + f"[ TIRE & FUEL WINDOWS ]".ljust(96) + " │")
             print(" │ " + f"Fastest Lap:  {GOLD}Lap {int(fastest_lap)}{RESET} ({fastest_time:.3f} s)".ljust(96 + len(GOLD) + len(RESET)) + " │")
             print(" │ " + f"Start Fuel:   {start_fuel}".ljust(96) + " │")
-            print(" ├" + "─" * 49 + "┤")
+            print(" ├" + "─" * 98 + "┤")
             print(" │ " + f"{CYAN}Average Tire Temperatures{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
             print(" │ " + f"  FL: {avg_t_fl:<10} | FR: {avg_t_fr}".ljust(96) + " │")
             print(" │ " + f"  RL: {avg_t_rl:<10} | RR: {avg_t_rr}".ljust(96) + " │")
-            print(" ├" + "─" * 49 + "┤")
+            print(" ├" + "─" * 98 + "┤")
             print(" │ " + f"{CYAN}Average Tire Pressures{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
             print(" │ " + f"  FL: {avg_p_fl:<10} | FR: {avg_p_fr}".ljust(96) + " │")
             print(" │ " + f"  RL: {avg_p_rl:<10} | RR: {avg_p_rr}".ljust(96) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print(" └" + "─" * 98 + "┘")
 
             # 2. Detailed Stint & Correlation (Merging old logic)
             stint_data = []
@@ -152,11 +152,11 @@ def run_tire_fuel_windows(sessions):
                     readout = f"{c_name}: [DATA MISSING]"
                 final_corner_readout.append(readout)
 
-            print("\n ┌" + "─" * 49 + "┐")
+            print("\n ┌" + "─" * 98 + "┐")
             print(" │ " + "[ STINT OVERVIEW ]".ljust(96) + " │")
             print(" │ " + f"Valid Laps: {len(stint_data)}".ljust(96) + " │")
             print(" │ " + f"Avg Fuel Use Per Lap: {avg_fuel_per_lap:.2f} L".ljust(96) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print(" └" + "─" * 98 + "┘")
 
             # 3. Side-by-Side Table Layout
             print("\n  [ LAP-BY-LAP CORRELATION ]".ljust(68) + "[ TIRE STINT PERFORMANCE ]")

@@ -85,11 +85,11 @@ def run_setup_prediction_engine(sessions):
             CYAN = '\033[96m'
             RESET = "\033[0m"
 
-            print("\n ┌" + "─" * 49 + "┐")
+            print("\n ┌" + "─" * 98 + "┐")
             print(" │ " + "[ Baseline Roll Stiffness ]".ljust(96) + " │")
             print(" │ " + f"{CYAN}Front Roll:{RESET} {abs(baseline_front_m):.3f} mm/G ({baseline_front_dist:.1f}%)".ljust(96 + len(CYAN) + len(RESET)) + " │")
             print(" │ " + f"{CYAN}Rear Roll:{RESET}  {abs(baseline_rear_m):.3f} mm/G ({baseline_rear_dist:.1f}%)".ljust(96 + len(CYAN) + len(RESET)) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print(" └" + "─" * 98 + "┘")
             
             print("\n  Enter setup change (e.g., 'farb +10%' or 'rarb -5%')")
             print("  Type 'p' to skip to next file/menu, or 'q' to quit.")
@@ -152,12 +152,12 @@ def run_setup_prediction_engine(sessions):
                 
             load_msg = f"Est. Outside Tire Load Change: {load_shift_pct:+.1f}%"
 
-            print("\n ┌" + "─" * 49 + "┐")
+            print("\n ┌" + "─" * 98 + "┐")
             print(" │ " + "[ PREDICTION RESULTS ]".ljust(96) + " │")
             print(" │ " + f"{axle_name} Roll Gradient: {abs(old_m):.3f} -> {PINK}{abs(new_m):.3f} mm/G{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
             print(" │ " + f"New Roll Balance: Front {new_front_dist:.1f}% | Rear {new_rear_dist:.1f}%".ljust(96) + " │")
             print(" │ " + load_msg.ljust(96) + " │")
-            print(" └" + "─" * 49 + "┘")
+            print(" └" + "─" * 98 + "┘")
 
             # Sector visualization
             print("\n  Enter track window to simulate the ghost setup")
