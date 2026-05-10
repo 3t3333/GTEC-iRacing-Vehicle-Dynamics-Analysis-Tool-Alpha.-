@@ -208,7 +208,7 @@ if __name__ == "__main__":
             for _ in range(3): update_screen(f"Found file: {f[:50]}")
 
     # Final success message
-    for _ in range(5): update_screen("All systems go.")
+    for _ in range(5): update_screen("...")
         
     sys.stdout.write("\n\n") # move past the second line so clear_screen doesn't look weird
     time.sleep(0.5)
@@ -313,8 +313,8 @@ def main():
                     air_temp_str = f"{d['AirTemp'].data[0]:.1f}°C"
                 elif 'Air Temp' in d:
                     air_temp_str = f"{d['Air Temp'].data[0]:.1f}°C"
-                    
-                if 'TrackTemp' in d:
+                   
+                elif 'TrackTemp' in d:
                     track_temp_str = f"{d['TrackTemp'].data[0]:.1f}°C"
                 elif 'Track Temp' in d:
                     track_temp_str = f"{d['Track Temp'].data[0]:.1f}°C"

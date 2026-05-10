@@ -419,6 +419,7 @@ def run_manual_analysis(project_name, state):
                 elif tool_choice == '12':
                     from analysis.compression_rates import run_compression_rates
                     run_compression_rates(sessions)
+                    
             except Exception as e:
                 import traceback
                 print(f"\n  [!!!] A fatal error occurred while running the tool: {e}")

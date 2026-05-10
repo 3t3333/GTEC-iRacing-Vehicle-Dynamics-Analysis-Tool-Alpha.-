@@ -99,10 +99,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             # Apply a 31-frame (~0.5s at 60Hz), 3rd order polynomial filter
             window = 31
             poly = 3
-            
-            raw_f_rh = (fl_rh + fr_rh) / 2.0
-            raw_r_rh = (rl_rh + rr_rh) / 2.0
-            
             if len(fl_rh) > window:
                 fl_rh = savgol_filter(fl_rh, window_length=window, polyorder=poly)
                 fr_rh = savgol_filter(fr_rh, window_length=window, polyorder=poly)
@@ -127,7 +123,7 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             
 
             # 1. Establish Static Loads
-            static_mask = (speed_kmh < 15) & (np.abs(lat_g) < 0.1) & (np.abs(long_g) < 0.1)
+            static_mask = (speed_kmh < 8) & (np.abs(lat_g) < 0.09) & (np.abs(long_g) < 0.09)
             if np.any(static_mask):
                 static_fl = np.median(fl_l[static_mask])
                 static_fr = np.median(fr_l[static_mask])
@@ -177,8 +173,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             
             f_rh = ((fl_rh + fr_rh) / 2.0)[aero_mask]
             r_rh = ((rl_rh + rr_rh) / 2.0)[aero_mask]
-            raw_f_rh = raw_f_rh[aero_mask]
-            raw_r_rh = raw_r_rh[aero_mask]
             
             total_front_load = (fl_l + fr_l)[aero_mask]
             total_rear_load = (rl_l + rr_l)[aero_mask]
@@ -195,8 +189,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
             valid_df_mask = total_downforce > 0
             f_rh = f_rh[valid_df_mask]
             r_rh = r_rh[valid_df_mask]
-            raw_f_rh = raw_f_rh[valid_df_mask]
-            raw_r_rh = raw_r_rh[valid_df_mask]
             total_downforce = total_downforce[valid_df_mask]
             v_filtered = v_filtered[valid_df_mask]
             
@@ -919,13 +911,8 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         sort_idx = np.argsort(d_f)
                         d_f = d_f[sort_idx]
                         
-                        # Smoothed (Aero Gated) Ride Heights
-                        f_rh_f = ((fl_rh + fr_rh) / 2.0)[final_mask][sort_idx]
-                        r_rh_f = ((rl_rh + rr_rh) / 2.0)[final_mask][sort_idx]
-                        
-                        # Raw Ride Heights for Transparent Overlay
-                        raw_f_rh_f = ((data[fl_ch].data + data[fr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
-                        raw_r_rh_f = ((data[rl_ch].data + data[rr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
+                        f_rh_f = ((data[fl_ch].data + data[fr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
+                        r_rh_f = ((data[rl_ch].data + data[rr_ch].data) / 2.0 * 1000)[final_mask][sort_idx]
                         
                         # Use the already calculated and scaled corner loads
                         l_fl = data[fl_load].data[final_mask][sort_idx]
@@ -954,8 +941,6 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         # Interpolate everything onto the distance grid
                         f_rh_res = np.interp(d_grid, d_f, f_rh_f)
                         r_rh_res = np.interp(d_grid, d_f, r_rh_f)
-                        raw_f_rh_res = np.interp(d_grid, d_f, raw_f_rh_f)
-                        raw_r_rh_res = np.interp(d_grid, d_f, raw_r_rh_f)
                         z_res = np.interp(d_grid, d_f, z_f)
                         lat_res = np.interp(d_grid, d_f, lat_f)
                         long_res = np.interp(d_grid, d_f, long_f)
@@ -974,14 +959,8 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
 
                         # Static Ride Height Plot
                         d_plot = d_grid - d_grid[0]
-                        
-                        # Plot raw data as semi-transparent
-                        ax_rh.plot(d_plot, raw_f_rh_res, c='white', label="Raw Front", lw=1.0, alpha=0.75)
-                        ax_rh.plot(d_plot, raw_r_rh_res, c='pink', label="Raw Rear", lw=1.0, alpha=0.75)
-                        
-                        # Plot smoothed/gated data over top
-                        ax_rh.plot(d_plot, f_rh_res, c='#0ea5e9', label="Smoothed Front", lw=1.5, alpha=0.9)
-                        ax_rh.plot(d_plot, r_rh_res, c='#D2751D', label="Smoothed Rear", lw=1.5, alpha=0.9)
+                        ax_rh.plot(d_plot, f_rh_res, c='#0ea5e9', label="Front RH", lw=1.5, alpha=0.4)
+                        ax_rh.plot(d_plot, r_rh_res, c='#D2751D', label="Rear RH", lw=1.5, alpha=0.4)
                         ax_rh.set_xlim(0, d_plot[-1])
                         ax_rh.set_ylim(min(np.min(f_rh_res), np.min(r_rh_res)) - 5, max(np.max(f_rh_res), np.max(r_rh_res)) + 5)
                         ax_rh.set_title("Ride Height / Distance Envelope", fontsize=11, pad=10)

@@ -8,5 +8,19 @@
             "feature": "8",
             "layout": "L2"
         }
+    ],
+    "AeroMaps": [
+        {
+            "feature": "8",
+            "layout": "L2"
+        },
+        {
+            "feature": "7",
+            "layout": "L2"
+        },
+        {
+            "feature": "1",
+            "layout": "L1"
+        }
     ]
 }

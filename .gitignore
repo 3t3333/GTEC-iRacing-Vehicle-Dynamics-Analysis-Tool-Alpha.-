@@ -65,6 +65,7 @@ Releases/
 test_csharp/
 
 # --- Workspace & Development Misc ---
+.opendav_auth
 website/
 vercel_deploy/
 webanalysisfeature/
