@@ -14,7 +14,9 @@ from ui.graphing import show_ctk_graph
 from ui.metadata_printer import print_session_metadata
 import ui.splash as splash
 
-opendav_cmap = matplotx.styles.aura['dark']['image.cmap']
+from matplotlib.colors import LinearSegmentedColormap
+opendav_colors = ["#2D8AE2", "#FF1493", "#D2751D"]
+opendav_cmap = LinearSegmentedColormap.from_list("opendav_aero", opendav_colors, N=256)
 
 def run_compression_rates(sessions, headless=False, headless_config=None):
     while True:
