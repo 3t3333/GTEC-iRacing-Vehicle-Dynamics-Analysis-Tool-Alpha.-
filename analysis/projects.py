@@ -375,6 +375,7 @@ def run_manual_analysis(project_name, state):
                 (9, "Pitch & Platform", "Braking dive and squat stiffness"),
                 (10, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
                 (11, "TLLTD Distribution", "Lateral load transfer distribution"),
+                (12, "Compression Rates", "Straight-line Aero Efficiency"),
                 ('p', "Back", "Return to file selection")
             ]
             
