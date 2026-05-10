@@ -312,7 +312,6 @@ def run_manual_analysis(project_name, state):
             if channels.get('dist') and channels['dist'] in data:
                 dist_raw = data[channels['dist']].data
                 lap_arr = data[channels['lap']].data
-                if len(dist_raw) > 0 and len(lap_arr) > 0:
 
             speed_ch = next((ch for ch in ['Speed', 'virt_body_v', 'Ground Speed'] if ch in data), None)
             speed_trace = None
