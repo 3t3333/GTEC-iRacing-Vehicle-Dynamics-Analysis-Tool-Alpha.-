@@ -61,12 +61,44 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
             
             dist_raw = data[dist_ch].data
             
-            # Get Static Mass for Downforce calc
+            # 1. Establish Static Loads
+            lat_g_ch = channels.get('lat')
+            long_g_ch = channels.get('long')
+            
+            lat_g = data[lat_g_ch].data if lat_g_ch and lat_g_ch in data else np.zeros_like(speed_kmh)
+            long_g = data[long_g_ch].data if long_g_ch and long_g_ch in data else np.zeros_like(speed_kmh)
+            
+            vert_g = data['VertAccel'].data / 9.80665 if 'VertAccel' in data else np.ones_like(lat_g)
+            
+            static_mask = (speed_kmh < 15) & (np.abs(lat_g) < 0.1) & (np.abs(long_g) < 0.1)
+            if np.any(static_mask):
+                static_fl = np.median(fl_l[static_mask])
+                static_fr = np.median(fr_l[static_mask])
+                static_rl = np.median(rl_l[static_mask])
+                static_rr = np.median(rr_l[static_mask])
+            else:
+                static_fl = np.median(fl_l) * 0.4
+                static_fr = static_fl
+                static_rl = np.median(rl_l) * 0.6
+                static_rr = static_rl
+
+            static_weight = static_fl + static_fr + static_rl + static_rr
+            calc_mass = static_weight / 9.80665
+            
+            # MASS CALIBRATION SCALAR
             overrides = getattr(data, 'overrides', {})
             phys_model = overrides.get('physics_model', {}) if overrides else {}
-            static_weight = phys_model.get('actual_mass_kg', 1350.0) * 9.80665
+            actual_mass = phys_model.get('actual_mass_kg', 1350.0) 
+            scale_factor = 1.0
             
-            vert_g = data['VertAccel'].data / 9.80665 if 'VertAccel' in data else np.ones_like(speed_raw)
+            if calc_mass > 1800 or calc_mass < 800:
+                scale_factor = actual_mass / calc_mass
+                fl_l *= scale_factor
+                fr_l *= scale_factor
+                rl_l *= scale_factor
+                rr_l *= scale_factor
+                static_weight *= scale_factor
+                
             total_load = fl_l + fr_l + rl_l + rr_l
             total_downforce = total_load - (static_weight * vert_g)
             
