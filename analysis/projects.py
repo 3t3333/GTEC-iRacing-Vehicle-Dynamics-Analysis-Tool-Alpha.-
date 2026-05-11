@@ -77,7 +77,7 @@ def manage_project(name):
             (1, "Commit New Files", "Link staged telemetry to baseline"),
             (2, "Individual Analysis", "Run math tools on specific files"),
             (3, "Run Automated Workbook", "Batch process all tracked telemetry"),
-            (4, "View Setup Timeline", "Review setup changes over time"),
+            (4, "Interactive Setup History", "Compare YAML setups chronologically"),
             (5, "Install to iRacing", "Export setup to sim folder"),
             (6, "Change Baseline File", "Switch active setup context"),
             (7, "Push to Team Cloud", "Upload project to Supabase"),
@@ -91,7 +91,9 @@ def manage_project(name):
         elif choice == '3':
             from analysis.workflow_engine import execute_workflow
             execute_workflow(name, state); input()
-        elif choice == '4': show_history(name)
+        elif choice == '4': 
+            from analysis.setup_viewer import run_setup_history
+            run_setup_history(name, state)
         elif choice == '5': install_to_iracing(name, path)
         elif choice == '6': set_baseline(name, path, state)
         elif choice == '7':
