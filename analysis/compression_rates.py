@@ -151,6 +151,32 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
             print(f"  [+] Sector Analyzed.")
             print(f"      Compression Rate: {m:.4f} mm / (km/h)")
             
+            f12_preview = """
+    >> [USE CASE]: ANALYZE STRAIGHT-LINE AERODYNAMIC EFFICIENCY AND SUSPENSION COMPRESSION.
+
+        L1: STATIC COMPRESSION RATES                  L2: ANIMATED COMPRESSION RATES
+ ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐
+ │                                         │   │                                         │
+ │                                         │   │                                         │
+ │                                         │   │                                         │
+ │ [X/Y] MAP:  FRONT RH / REAR RH          │   │ [X/Y] MAP:  FRONT RH / REAR RH          │
+ │ [C] CONTR:  SECTOR DOWNFORCE CONTOUR    │   │ [C] CONTR:  ROLLING DOWNFORCE CONTOUR   │
+ │ [L] TREND:  SPEED VS CENTER RH SLOPE    │   │ [L] TREND:  DYNAMIC REGRESSION PLAYHEAD │
+ │ [E] ENVEL:  DOWNFORCE/SPEED VS DISTANCE │   │ [E] ENVEL:  SYNCHRONIZED DISTANCE TRACE │
+ └─────────────────────────────────────────┘   └─────────────────────────────────────────┘
+
+        L3: STATIC TRADE-OFF COMPARISON               L4: ANIMATED TRADE-OFF COMPARISON
+ ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐
+ │                                         │   │                                         │
+ │                                         │   │                                         │
+ │                                         │   │                                         │
+ │ [3x MAPS] BASELINE VS 2 ALT SETUPS      │   │ [3x MAPS] ROLLING CONTOURS SYNCHRONIZED │
+ │ [3x LINES] REGRESSION TREND COMPARISONS │   │ [3x LINES] DYNAMIC REGRESSION TRACKING  │
+ │ [TITLE] AUTOMATIC SETUP DELTA DIFFING   │   │ [TITLE] AUTOMATIC SETUP DELTA DIFFING   │
+ │                                         │   │                                         │
+ └─────────────────────────────────────────┘   └─────────────────────────────────────────┘"""
+            print(f12_preview)
+            
             ans_raw = input(f"\n  Select action ('open L1/L2/L3/L4', 'print L1/L2/L3/L4', 'p' to go back < proj): ").strip().lower()
             ans = ans_raw.split('<')[0].strip().lower()
             
