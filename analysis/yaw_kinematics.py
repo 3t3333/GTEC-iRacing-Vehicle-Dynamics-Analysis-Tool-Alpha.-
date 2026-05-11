@@ -132,9 +132,9 @@ def run_yaw_analyzer(sessions, headless=False, headless_config=None):
             
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
-                print("  │ " + "[ YAW KINEMATICS & BALANCE ]".ljust(92) + " │")
+                print("  │ " + "[ YAW KINEMATICS & BALANCE ]".ljust(96) + " │")
                 print("  │ " + f"Median Yaw Error: {abs(median_err):.2f} deg/s ({bias_str})".ljust(96 + len(PINK) + len(RESET)) + " │")
-                print("  │ " + f"Wheelbase: {wheelbase:.3f} m | Ratio: {steering_ratio:.1f}".ljust(92) + " │")
+                print("  │ " + f"Wheelbase: {wheelbase:.3f} m | Ratio: {steering_ratio:.1f}".ljust(96) + " │")
                 print("  └" + "─" * 98 + "┘")
 
             l1_preview = f"""

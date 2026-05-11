@@ -101,10 +101,10 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
             
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
-                print("  │ " + "[ TLLTD - LATERAL LOAD TRANSFER ]".ljust(92) + " │")
+                print("  │ " + "[ TLLTD - LATERAL LOAD TRANSFER ]".ljust(96) + " │")
                 print("  │ " + f"Front TLLTD: {CYAN}{avg_tlltd_f:.1f}%{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
                 print("  │ " + f"Rear TLLTD:  {PINK}{avg_tlltd_r:.1f}%{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
-                print("  │ " + f"Static Weight Bias: {static_f_bias:.1f}% Front".ljust(92) + " │")
+                print("  │ " + f"Static Weight Bias: {static_f_bias:.1f}% Front".ljust(96) + " │")
                 print("  └" + "─" * 98 + "┘")
 
             file_basename = os.path.basename(file_path)

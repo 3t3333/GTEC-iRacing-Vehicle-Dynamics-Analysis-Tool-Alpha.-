@@ -198,10 +198,10 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
             RESET = "\033[0m"
             
             print("\n  ┌" + "─" * 98 + "┐")
-            print("  │ " + "[ EMPIRICAL AERO BALANCE ]".ljust(92) + " │")
+            print("  │ " + "[ EMPIRICAL AERO BALANCE ]".ljust(96) + " │")
             print("  │ " + f"Average High-Speed AB: {CYAN}{median_ab:.1f}% Front{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
             print("  │ " + f"Peak Pitch AB (Braking): {PINK}{max_ab:.1f}% Front{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
-            print("  │ " + f"Minimum AB (Accel):      {min_ab:.1f}% Front".ljust(92) + " │")
+            print("  │ " + f"Minimum AB (Accel):      {min_ab:.1f}% Front".ljust(96) + " │")
             print("  └" + "─" * 98 + "┘")
 
             md = session.get('metadata', {})

@@ -207,9 +207,9 @@ def run_setup_history(project_name, state):
         
         max_lines = max(len(left_lines), len(right_lines))
         
-        print(" ┌" + "─" * 43 + "┐     ┌" + "─" * 43 + "┐")
-        print(" │ PREVIOUS SETUP" + " " * 27 + "│ ==> │ NEW SETUP" + " " * 32 + "│")
-        print(" ├" + "─" * 43 + "┤     ├" + "─" * 43 + "┤")
+        print(" ┌" + "─" * 43 + "┐       ┌" + "─" * 43 + "┐")
+        print(" │ " + "PREVIOUS SETUP".ljust(41) + " │  ==>  │ " + "NEW SETUP".ljust(41) + " │")
+        print(" ├" + "─" * 43 + "┤       ├" + "─" * 43 + "┤")
         
         for i in range(max_lines):
             l_str = left_lines[i] if i < len(left_lines) else ""
@@ -218,9 +218,9 @@ def run_setup_history(project_name, state):
             l_pad = pad_line(l_str, 41)
             r_pad = pad_line(r_str, 41)
             
-            print(f" │ {l_pad} │     │ {r_pad} │")
+            print(f" │ {l_pad} │       │ {r_pad} │")
             
-        print(" └" + "─" * 43 + "┘     └" + "─" * 43 + "┘")
+        print(" └" + "─" * 43 + "┘       └" + "─" * 43 + "┘")
         
         print("\n" + "─" * 100)
         input("Press Enter to return to History Viewer...")
@@ -240,7 +240,7 @@ def run_static_setup_viewer(sessions):
             continue
             
         print("\n ┌" + "─" * 43 + "┐")
-        print(" │ [ STATIC SETUP YAML ]" + " " * 22 + "│")
+        print(" │ [ STATIC SETUP YAML ]" + " " * 21 + "│")
         print(" ├" + "─" * 43 + "┤")
         
         lines = dict_to_lines(raw, {})
