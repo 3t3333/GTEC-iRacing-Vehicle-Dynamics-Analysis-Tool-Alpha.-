@@ -116,13 +116,12 @@ def pad_line(line, width):
         return line + " " * (width - plen)
     return line
 
-def run_setup_viewer(sessions):
-    if not sessions: return
-    
-    # Extract the project files. We need the full history!
-    project_files = sessions[0].get('project_files', [])
+def run_setup_history(project_name, state):
+    project_files = state.get('linked_files', [])
     if not project_files:
-        project_files = [sessions[0]['file_path']]
+        print("  [!] No files linked to this project.")
+        input("\nPress Enter to return...")
+        return
         
     print("\n  [*] Loading Setup History...")
     setups_data = []
@@ -147,7 +146,7 @@ def run_setup_viewer(sessions):
         return
 
     while True:
-        splash.print_header("Setup History Viewer")
+        splash.print_header("Setup History Viewer", path=f"SimGit > {project_name}")
         
         menu_items = []
         for i, sd in enumerate(setups_data):

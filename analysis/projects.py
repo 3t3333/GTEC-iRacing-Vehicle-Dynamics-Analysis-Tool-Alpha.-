@@ -369,17 +369,16 @@ def run_manual_analysis(project_name, state):
             
             tools = [
                 (1, "Tire Energy Profiler", "Physical work and abuse bias"),
-                (2, "Static Setup Viewer", "YAML mechanical state"),
-                (3, "Dynamic Rake Analyzer", "Attitude vs Speed trend"),
-                (4, "Tire & Fuel Windows", "Stint performance tracking"),
-                (5, "Tire Temp/Load Map", "Sector grip performance"),
-                (6, "Custom Math Sandbox", "User-defined telemetry plots"),
-                (7, "Empirical Aero Map", "3D Balance & Rake Topography"),
-                (8, "Downforce Mapping", "Total Load & Aero Efficiency"),
-                (9, "Pitch & Platform", "Braking dive and squat stiffness"),
-                (10, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
-                (11, "TLLTD Distribution", "Lateral load transfer distribution"),
-                (12, "Compression Rates", "Straight-line Aero Efficiency"),
+                (2, "Dynamic Rake Analyzer", "Attitude vs Speed trend"),
+                (3, "Tire & Fuel Windows", "Stint performance tracking"),
+                (4, "Tire Temp/Load Map", "Sector grip performance"),
+                (5, "Custom Math Sandbox", "User-defined telemetry plots"),
+                (6, "Empirical Aero Map", "3D Balance & Rake Topography"),
+                (7, "Downforce Mapping", "Total Load & Aero Efficiency"),
+                (8, "Pitch & Platform", "Braking dive and squat stiffness"),
+                (9, "Handling Analyzer", "Yaw Error (Understeer/Oversteer)"),
+                (10, "TLLTD Distribution", "Lateral load transfer distribution"),
+                (11, "Compression Rates", "Straight-line Aero Efficiency"),
                 ('p', "Back", "Return to file selection")
             ]
             
@@ -391,36 +390,33 @@ def run_manual_analysis(project_name, state):
                     from analysis.tire_energy import run_tire_energy_profiler
                     run_tire_energy_profiler(sessions)
                 elif tool_choice == '2':
-                    from analysis.setup_viewer import run_setup_viewer
-                    run_setup_viewer(sessions)
-                elif tool_choice == '3':
                     from analysis.aero_rake import run_rake_analysis
                     run_rake_analysis(sessions)
-                elif tool_choice == '4':
+                elif tool_choice == '3':
                     from analysis.tire_fuel_windows import run_tire_fuel_windows
                     run_tire_fuel_windows(sessions)
-                elif tool_choice == '5':
+                elif tool_choice == '4':
                     from analysis.tire_performance import run_sector_tire_analysis
                     run_sector_tire_analysis(sessions)
-                elif tool_choice == '6':
+                elif tool_choice == '5':
                     from analysis.math_sandbox import run_custom_math_graph
                     run_custom_math_graph(sessions)
-                elif tool_choice == '7':
+                elif tool_choice == '6':
                     from analysis.aero_mapping import run_aero_mapping
                     run_aero_mapping(sessions)
-                elif tool_choice == '8':
+                elif tool_choice == '7':
                     from analysis.downforce_mapping import run_downforce_mapping
                     run_downforce_mapping(sessions)
-                elif tool_choice == '9':
+                elif tool_choice == '8':
                     from analysis.pitch_kinematics import run_pitch_analyzer
                     run_pitch_analyzer(sessions)
-                elif tool_choice == '10':
+                elif tool_choice == '9':
                     from analysis.yaw_kinematics import run_yaw_analyzer
                     run_yaw_analyzer(sessions)
-                elif tool_choice == '11':
+                elif tool_choice == '10':
                     from analysis.load_transfer import run_tlltd_analyzer
                     run_tlltd_analyzer(sessions)
-                elif tool_choice == '12':
+                elif tool_choice == '11':
                     from analysis.compression_rates import run_compression_rates
                     run_compression_rates(sessions)
                     
