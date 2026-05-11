@@ -1,115 +1,222 @@
 import os
 import sys
 import yaml
-from core.telemetry import get_static_val
+import re
+from core.telemetry import load_telemetry
 import ui.splash as splash
-from ui.metadata_printer import print_session_metadata
+from ui.tui_engine import get_tui_choice
 
-def format_yaml_value(val):
-    if isinstance(val, dict):
-        return ""
-    if isinstance(val, list):
-        return ", ".join(str(v) for v in val)
-    return str(val)
+BLUE = '\033[94m'
+GREEN = '\033[92m'
+RED = '\033[91m'
+RESET = '\033[0m'
+
+def extract_flat_setup(y_str):
+    if not y_str: return {}
+    try:
+        if isinstance(y_str, bytes):
+            y_str = y_str.decode('utf-8', errors='ignore')
+        y = yaml.safe_load(y_str)
+        if not y or 'CarSetup' not in y: return {}
+        
+        setup = y['CarSetup']
+        flat = {}
+        def recurse(d, prefix=""):
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    if k in ("UpdateCount", "LastTempsOMI", "LastTempsIMO", "TreadRemaining", "CornerWeight"): continue
+                    recurse(v, f"{prefix}{k}." if prefix else f"{k}.")
+            else: flat[prefix[:-1]] = d
+        recurse(setup)
+        return flat
+    except:
+        return {}
+
+def get_raw_setup_dict(y_str):
+    if not y_str: return {}
+    try:
+        if isinstance(y_str, bytes):
+            y_str = y_str.decode('utf-8', errors='ignore')
+        y = yaml.safe_load(y_str)
+        if not y or 'CarSetup' not in y: return {}
+        return y['CarSetup']
+    except:
+        return {}
+
+def categorize_changes(flat1, flat2):
+    changes = []
+    diffs = {}
+    for k in set(flat1.keys()).union(flat2.keys()):
+        v1 = flat1.get(k, None)
+        v2 = flat2.get(k, None)
+        if str(v1) != str(v2):
+            diffs[k] = (v1, v2)
+            k_lower = k.lower()
+            if any(x in k_lower for x in ['wing', 'aero', 'spoiler', 'splitter', 'downforce', 'flap']):
+                changes.append("Aero changes")
+            elif any(x in k_lower for x in ['spring', 'shock', 'roll', 'camber', 'toe', 'rideheight', 'arb', 'stiff', 'perch', 'heave']):
+                changes.append("Suspension changes")
+            elif any(x in k_lower for x in ['tire', 'press', 'compound', 'friction']):
+                changes.append("Tire changes")
+            elif any(x in k_lower for x in ['brake', 'bias', 'pad']):
+                changes.append("Brake changes")
+            elif any(x in k_lower for x in ['fuel', 'engine', 'diff', 'gear', 'preload']):
+                changes.append("Drivetrain changes")
+            else:
+                changes.append("Chassis changes")
+                
+    return list(set(changes)), diffs
+
+def extract_num(s):
+    if s is None: return None
+    match = re.search(r'-?\d+\.?\d*', str(s))
+    if match: return float(match.group())
+    return None
+
+def format_delta(k, v1, v2):
+    n1 = extract_num(v1)
+    n2 = extract_num(v2)
+    short_k = k.split('.')[-1]
+    if n1 is not None and n2 is not None:
+        diff = n2 - n1
+        if diff > 0:
+            return f"{short_k}: {v1} -> {v2} {GREEN}(+{diff:g}){RESET}"
+        elif diff < 0:
+            return f"{short_k}: {v1} -> {v2} {RED}({diff:g}){RESET}"
+    return f"{short_k}: {v1} -> {v2} {BLUE}(Changed){RESET}"
+
+def dict_to_lines(d, diffs, prefix="", indent=0):
+    lines = []
+    for k, v in d.items():
+        if k in ("UpdateCount", "LastTempsOMI", "LastTempsIMO", "TreadRemaining", "CornerWeight"): continue
+        full_key = f"{prefix}{k}" if prefix else k
+        
+        if isinstance(v, dict):
+            lines.append(" " * indent + f"{k}:")
+            lines.extend(dict_to_lines(v, diffs, f"{full_key}.", indent + 2))
+        else:
+            if isinstance(v, list):
+                v_str = ", ".join(str(x) for x in v)
+            else:
+                v_str = str(v)
+                
+            if full_key in diffs:
+                lines.append(" " * indent + f"{k}: {BLUE}{v_str}{RESET}")
+            else:
+                lines.append(" " * indent + f"{k}: {v_str}")
+    return lines
+
+def strip_ansi(text):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
+def pad_line(line, width):
+    plen = len(strip_ansi(line))
+    if plen < width:
+        return line + " " * (width - plen)
+    return line
 
 def run_setup_viewer(sessions):
-    while True:
-        splash.print_header("Static Setup Viewer")
+    if not sessions: return
+    
+    # Extract the project files. We need the full history!
+    project_files = sessions[0].get('project_files', [])
+    if not project_files:
+        project_files = [sessions[0]['file_path']]
         
-        for session in sessions:
-            file_path = session['file_path']
-            data = session['data']
-            metadata = session.get('metadata', {})
-            
-            print(f"\nAnalyzing: {os.path.basename(file_path)}")
-            print_session_metadata(data, session['channels'], metadata)
-            
-            # Check for iRacing YAML Setup
-            yaml_str = metadata.get('session_info_yaml', '')
-            found_yaml_setup = False
-            
-            if yaml_str:
-                try:
-                    # If it's bytes, decode it. We've seen this issue before.
-                    if isinstance(yaml_str, bytes):
-                        yaml_str = yaml_str.decode('utf-8', errors='ignore')
-                        
-                    y_data = yaml.safe_load(yaml_str)
-                    if y_data and 'CarSetup' in y_data:
-                        found_yaml_setup = True
-                        setup = y_data['CarSetup']
-                        
-                        for section_name, section_data in setup.items():
-                            if section_name == 'UpdateCount': continue
-                            
-                            print("\n ┌" + "─" * 55 + "┐")
-                            print(" │ " + f"[ {section_name.upper()} ]".ljust(53) + " │")
-                            
-                            if isinstance(section_data, dict):
-                                for k, v in section_data.items():
-                                    if isinstance(v, dict):
-                                        # Print sub-section header
-                                        print(" │ " + f"  {k}:".ljust(53) + " │")
-                                        for sub_k, sub_v in v.items():
-                                            val_str = format_yaml_value(sub_v)
-                                            print(" │ " + f"    {sub_k}: {val_str}".ljust(53) + " │")
-                                    else:
-                                        val_str = format_yaml_value(v)
-                                        print(" │ " + f"  {k}: {val_str}".ljust(53) + " │")
-                                        
-                            print(" └" + "─" * 55 + "┘")
-                except Exception as e:
-                    pass
-            
-            # MoTeC / Traditional Telemetry Fallback
-            if not found_yaml_setup:
-                # Pressures
-                fl_p = get_static_val(data, ['dpLFTireColdPress', 'LFcoldPressure'], multiplier=0.145038, fmt="{:.1f}", unit="psi")
-                fr_p = get_static_val(data, ['dpRFTireColdPress', 'RFcoldPressure'], multiplier=0.145038, fmt="{:.1f}", unit="psi")
-                rl_p = get_static_val(data, ['dpLRTireColdPress', 'LRcoldPressure'], multiplier=0.145038, fmt="{:.1f}", unit="psi")
-                rr_p = get_static_val(data, ['dpRRTireColdPress', 'RRcoldPressure'], multiplier=0.145038, fmt="{:.1f}", unit="psi")
-                
-                # Ride heights
-                fl_rh = get_static_val(data, ['Ride Height FL', 'LFrideHeight'], multiplier=1000, fmt="{:.1f}", unit="mm")
-                fr_rh = get_static_val(data, ['Ride Height FR', 'RFrideHeight'], multiplier=1000, fmt="{:.1f}", unit="mm")
-                rl_rh = get_static_val(data, ['Ride Height RL', 'LRrideHeight'], multiplier=1000, fmt="{:.1f}", unit="mm")
-                rr_rh = get_static_val(data, ['Ride Height RR', 'RRrideHeight'], multiplier=1000, fmt="{:.1f}", unit="mm")
-                
-                # Brake Bias
-                bb = get_static_val(data, ['dcBrakeBias', 'Brake Bias', 'BrakeBias'], fmt="{:.2f}", unit="%")
-                
-                # Compound
-                comp = get_static_val(data, ['PlayerTireCompound', 'PitSvTireCompound'], fmt="{}", unit="")
-                if comp == "0.0": comp = "Dry"
-                elif comp == "1.0": comp = "Wet"
+    print("\n  [*] Loading Setup History...")
+    setups_data = []
+    
+    for fp in project_files:
+        try:
+            _, _, _, md = load_telemetry(fp, meta_only=True)
+            y_str = md.get('session_info_yaml', '')
+            flat = extract_flat_setup(y_str)
+            raw = get_raw_setup_dict(y_str)
+            setups_data.append({
+                'file': os.path.basename(fp),
+                'flat': flat,
+                'raw': raw
+            })
+        except:
+            pass
 
-                # Try to get wing, camber, spring if they exist
-                wing = get_static_val(data, ['RearWing', 'Rear Wing', 'WingAngle', 'RearWingAngle'], fmt="{:.1f}", unit="")
-                fl_camb = get_static_val(data, ['Camber FL', 'LFcamber'], fmt="{:.2f}", unit="deg")
-                fl_spring = get_static_val(data, ['Spring FL', 'LFspring'], fmt="{:.1f}", unit="N/mm")
+    if len(setups_data) == 0:
+        print("  [!] No valid setup data found.")
+        input("\nPress Enter to return...")
+        return
 
-                print("\n ┌" + "─" * 55 + "┐")
-                print(" │ " + "[ TIRES & PRESSURES ]".ljust(53) + " │")
-                print(" │ " + f"Compound:        {comp}".ljust(53) + " │")
-                print(" │ " + f"Cold Pressures:  FL: {fl_p:<10} | FR: {fr_p}".ljust(53) + " │")
-                print(" │ " + f"                 RL: {rl_p:<10} | RR: {rr_p}".ljust(53) + " │")
-                print(" └" + "─" * 55 + "┘")
-                print(" ┌" + "─" * 55 + "┐")
-                print(" │ " + "[ AERODYNAMICS & CHASSIS ]".ljust(53) + " │")
-                print(" │ " + f"Ride Heights:    FL: {fl_rh:<10} | FR: {fr_rh}".ljust(53) + " │")
-                print(" │ " + f"                 RL: {rl_rh:<10} | RR: {rr_rh}".ljust(53) + " │")
-                print(" │ " + f"Rear Wing:       {wing}".ljust(53) + " │")
-                print(" └" + "─" * 55 + "┘")
-                print(" ┌" + "─" * 55 + "┐")
-                print(" │ " + "[ SUSPENSION & BRAKES ]".ljust(53) + " │")
-                print(" │ " + f"Spring Rates:    {fl_spring}".ljust(53) + " │")
-                print(" │ " + f"Camber:          {fl_camb}".ljust(53) + " │")
-                print(" │ " + f"Brake Bias:      {bb}".ljust(53) + " │")
-                print(" └" + "─" * 55 + "┘")
-
-        print("\n" + "─"*100)
-        inp = input("Press Enter to return to Tools Menu or 'q' to quit: ").strip().lower()
-        if inp == 'q':
-            splash.show_exit_screen()
-            sys.exit(0)
-        break
+    while True:
+        splash.print_header("Setup History Viewer")
+        
+        menu_items = []
+        for i, sd in enumerate(setups_data):
+            if i == 0:
+                menu_items.append((i+1, sd['file'], "Baseline Setup (No previous reference)"))
+            else:
+                changes, diffs = categorize_changes(setups_data[i-1]['flat'], sd['flat'])
+                if changes:
+                    desc = ", ".join(changes)
+                else:
+                    desc = "No changes detected"
+                menu_items.append((i+1, sd['file'], desc))
+                
+        menu_items.append(('p', "Back", "Return to Tools Menu"))
+        
+        choice = get_tui_choice(menu_items)
+        if choice == 'p': break
+        
+        idx = int(choice) - 1
+        
+        if idx == 0:
+            print(f"\n  [!] '{setups_data[idx]['file']}' is the baseline.")
+            print("      Select a later iteration to compare changes.")
+            input("\nPress Enter to continue...")
+            continue
+            
+        prev_data = setups_data[idx-1]
+        curr_data = setups_data[idx]
+        
+        changes, diffs = categorize_changes(prev_data['flat'], curr_data['flat'])
+        
+        splash.clear_screen()
+        print("\n" + "═" * 100)
+        print(f" SETUP ITERATION COMPARISON".center(100))
+        print("═" * 100)
+        print(f" Previous: {prev_data['file']}")
+        print(f" New:      {curr_data['file']}")
+        print("─" * 100)
+        
+        if not diffs:
+            print("\n  [!] No setup changes detected between these two files.")
+            input("\nPress Enter to return to History Viewer...")
+            continue
+            
+        print(f"\n {BLUE}[ CHANGED PARAMETERS ]{RESET}")
+        for k, (v1, v2) in diffs.items():
+            print(f"   • {format_delta(k, v1, v2)}")
+            
+        print("\n")
+        
+        left_lines = dict_to_lines(prev_data['raw'], diffs)
+        right_lines = dict_to_lines(curr_data['raw'], diffs)
+        
+        max_lines = max(len(left_lines), len(right_lines))
+        
+        print(" ┌" + "─" * 43 + "┐     ┌" + "─" * 43 + "┐")
+        print(" │ PREVIOUS SETUP" + " " * 27 + "│ ==> │ NEW SETUP" + " " * 32 + "│")
+        print(" ├" + "─" * 43 + "┤     ├" + "─" * 43 + "┤")
+        
+        for i in range(max_lines):
+            l_str = left_lines[i] if i < len(left_lines) else ""
+            r_str = right_lines[i] if i < len(right_lines) else ""
+            
+            l_pad = pad_line(l_str, 41)
+            r_pad = pad_line(r_str, 41)
+            
+            print(f" │ {l_pad} │     │ {r_pad} │")
+            
+        print(" └" + "─" * 43 + "┘     └" + "─" * 43 + "┘")
+        
+        print("\n" + "─" * 100)
+        input("Press Enter to return to History Viewer...")
