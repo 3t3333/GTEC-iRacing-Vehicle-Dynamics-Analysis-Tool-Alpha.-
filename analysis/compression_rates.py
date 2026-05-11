@@ -165,19 +165,19 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
  │ [E] ENVEL:  DOWNFORCE/SPEED VS DISTANCE │   │ [E] ENVEL:  SYNCHRONIZED DISTANCE TRACE │
  └─────────────────────────────────────────┘   └─────────────────────────────────────────┘
 
-        L3: STATIC TRADE-OFF COMPARISON               L4: ANIMATED TRADE-OFF COMPARISON
+        L3/L4: 2-SETUP TRADE-OFF COMPARISON           L5/L6: 3-SETUP TRADE-OFF COMPARISON
  ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐
+ │ L3: STATIC MAPS      L4: ANIMATED MAPS  │   │ L5: STATIC MAPS      L6: ANIMATED MAPS  │
  │                                         │   │                                         │
  │                                         │   │                                         │
- │                                         │   │                                         │
- │ [3x MAPS] BASELINE VS 2 ALT SETUPS      │   │ [3x MAPS] ROLLING CONTOURS SYNCHRONIZED │
- │ [3x LINES] REGRESSION TREND COMPARISONS │   │ [3x LINES] DYNAMIC REGRESSION TRACKING  │
+ │ [2x MAPS] BASELINE VS 1 ALT SETUP       │   │ [3x MAPS] BASELINE VS 2 ALT SETUPS      │
+ │ [2x LINES] REGRESSION TREND COMPARISONS │   │ [3x LINES] REGRESSION TREND COMPARISONS │
  │ [TITLE] AUTOMATIC SETUP DELTA DIFFING   │   │ [TITLE] AUTOMATIC SETUP DELTA DIFFING   │
  │                                         │   │                                         │
  └─────────────────────────────────────────┘   └─────────────────────────────────────────┘"""
             print(f12_preview)
             
-            ans_raw = input(f"\n  Select action ('open L1/L2/L3/L4', 'print L1/L2/L3/L4', 'p' to go back < proj): ").strip().lower()
+            ans_raw = input(f"\n  Select action ('open L1..L6', 'print L1..L6', 'p' to go back < proj): ").strip().lower()
             ans = ans_raw.split('<')[0].strip().lower()
             
             if ans == 'p':
@@ -230,7 +230,7 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                     f_min_lim, f_max_lim = np.min(f_rh_res)-2, np.max(f_rh_res)+2
                     r_min_lim, r_max_lim = np.min(r_rh_res)-2, np.max(r_rh_res)+2
                     
-                    fig.suptitle(f"OpenDAV F12L2: {file_basename}", fontsize=15, color='white', y=0.97)
+                    fig.suptitle(f"OpenDAV F11L2: {file_basename}", fontsize=15, color='white', y=0.97)
                     plt.tight_layout()
                     fig.subplots_adjust(top=0.9)
                     
@@ -277,10 +277,10 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project
-                            subf = os.path.join(headless_config.get('run_folder', ''), f"F12L2_{ts}") if headless else f"F12L2_{ts}"
+                            subf = os.path.join(headless_config.get('run_folder', ''), f"F11L2_{ts}") if headless else f"F11L2_{ts}"
                             save_to_project(fig, project_name, f"L2_Animation_{file_basename}.mp4", subfolder=subf, is_video=True, ani=ani)
                         else:
-                            out_dir = os.path.join("exports", f"F12L2_{ts}")
+                            out_dir = os.path.join("exports", f"F11L2_{ts}")
                             os.makedirs(out_dir, exist_ok=True)
                             out_file = os.path.join(out_dir, f"L2_Animation_{file_basename}.mp4")
                             ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
@@ -290,20 +290,24 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                     print(f"  [!] Animation Error: {e}")
                     import traceback; traceback.print_exc()
 
-            if ans in ['open l3', 'print l3', 'open l4', 'print l4']:
+            if ans in ['open l3', 'print l3', 'open l4', 'print l4', 'open l5', 'print l5', 'open l6', 'print l6']:
                 from ui.tui_ref_selector import select_reference_file
                 from core.telemetry import load_telemetry
                 import textwrap
                 
-                print("\n  [+] Select Reference File 1")
+                print("\n  [+] Select Reference Setup 1")
                 res1 = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
                 if not res1 or not res1[0]: continue
                 r1_path, r1_laps, r1_data, r1_channels, r1_md = res1
                 
-                print("\n  [+] Select Reference File 2")
-                res2 = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
-                if not res2 or not res2[0]: continue
-                r2_path, r2_laps, r2_data, r2_channels, r2_md = res2
+                r2_path, r2_laps, r2_data, r2_channels, r2_md = None, None, None, None, None
+                is_3_setup = ans in ['open l5', 'print l5', 'open l6', 'print l6']
+                
+                if is_3_setup:
+                    print("\n  [+] Select Reference Setup 2")
+                    res2 = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
+                    if not res2 or not res2[0]: continue
+                    r2_path, r2_laps, r2_data, r2_channels, r2_md = res2
                 
                 def extract_setup(y):
                     setup = y.get('CarSetup', {})
@@ -337,7 +341,7 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
 
                 title_base = f"BASELINE: {file_basename}"
                 title_r1 = get_delta_title(md.get('session_info_yaml', ''), r1_md.get('session_info_yaml', ''), r1_path)
-                title_r2 = get_delta_title(md.get('session_info_yaml', ''), r2_md.get('session_info_yaml', ''), r2_path)
+                title_r2 = get_delta_title(md.get('session_info_yaml', ''), r2_md.get('session_info_yaml', ''), r2_path) if is_3_setup else "" 
 
                 def process_ref(r_data, r_ch, r_laps, bounds):
                     s_ch = next((c for c in ['Speed', 'virt_body_v', 'Ground Speed'] if c in r_data), None)
@@ -399,23 +403,22 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                     }
 
                 r1_res = process_ref(r1_data, r1_channels, r1_laps, session['distance_bounds'])
-                r2_res = process_ref(r2_data, r2_channels, r2_laps, session['distance_bounds'])
+                r2_res = process_ref(r2_data, r2_channels, r2_laps, session['distance_bounds']) if is_3_setup else None
                 
-                if not r1_res or not r2_res:
+                if not r1_res or (is_3_setup and not r2_res):
                     print("  [!] Failed to extract valid overlapping sector from reference files.")
                     continue
                     
-                # Base is already calculated in main loop
                 base_res = {'spd': s_speed, 'crh': crh_smooth, 'df': s_df, 'f_rh': s_f_rh, 'r_rh': s_r_rh, 'dist': s_dist, 'm': m, 'b': b}
-                datasets = [base_res, r1_res, r2_res]
-                titles = [title_base, title_r1, title_r2]
+                datasets = [base_res, r1_res, r2_res] if is_3_setup else [base_res, r1_res]
+                titles = [title_base, title_r1, title_r2] if is_3_setup else [title_base, title_r1]
                 
                 plt.style.use(matplotx.styles.aura['dark'])
                 
-                if ans in ['open l3', 'print l3']:
-                    print("  [+] Building Trade-off Comparison Layout (L3)...")
+                if ans in ['open l3', 'print l3', 'open l5', 'print l5']:
+                    print(f"  [+] Building Static Trade-off Comparison ({ans.split()[1].upper()})...")
                     fig = plt.figure(figsize=(18, 10), num='OpenDAV - Trade-off Comparison')
-                    gs = GridSpec(2, 3, height_ratios=[1.2, 1], figure=fig)
+                    gs = GridSpec(2, len(datasets), height_ratios=[1.2, 1], figure=fig)
                     
                     for i, (ds, title) in enumerate(zip(datasets, titles)):
                         ax_map = fig.add_subplot(gs[0, i])
@@ -449,30 +452,36 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         ax_reg.legend(loc='upper right', frameon=False)
                         
                     plt.tight_layout()
-                    if ans == 'open l3':
+                    if ans in ['open l3', 'open l5']:
                         if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - Trade-off Comparison")
                         else: plt.show()
                     else:
+                        l_name = ans.split()[1].upper()
                         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project
                             subf = headless_config.get('run_folder') if headless else None
-                            save_to_project(fig, project_name, f"F12L3_{ts}_Tradeoff.png", subfolder=subf)
+                            save_to_project(fig, project_name, f"F11{l_name}_{ts}_Tradeoff.png", subfolder=subf)
                         else:
-                            out = os.path.join("exports", f"F12L3_{ts}_Tradeoff.png")
+                            out = os.path.join("exports", f"F11{l_name}_{ts}_Tradeoff.png")
                             plt.savefig(out, dpi=300, bbox_inches='tight')
-                            print(f"  [+] Saved L3 to {out}")
+                            print(f"  [+] Saved {l_name} to {out}")
                     plt.close(fig)
                     
-                elif ans in ['open l4', 'print l4']:
-                    print("  [+] Building Animated Trade-off Comparison (L4)...")
+                elif ans in ['open l4', 'print l4', 'open l6', 'print l6']:
+                    l_name = ans.split()[1].upper()
+                    print(f"  [+] Building Animated Trade-off Comparison ({l_name})...")
                     fig = plt.figure(figsize=(18, 10), num='OpenDAV - Animated Trade-off')
-                    gs = GridSpec(2, 3, height_ratios=[1.2, 1], figure=fig)
+                    gs = GridSpec(2, len(datasets), height_ratios=[1.2, 1], figure=fig)
                     
                     # Common Grid
-                    min_d = min(base_res['dist'][0], r1_res['dist'][0], r2_res['dist'][0])
-                    max_d = max(base_res['dist'][-1], r1_res['dist'][-1], r2_res['dist'][-1])
+                    if is_3_setup:
+                        min_d = min(base_res['dist'][0], r1_res['dist'][0], r2_res['dist'][0])
+                        max_d = max(base_res['dist'][-1], r1_res['dist'][-1], r2_res['dist'][-1])
+                    else:
+                        min_d = min(base_res['dist'][0], r1_res['dist'][0])
+                        max_d = max(base_res['dist'][-1], r1_res['dist'][-1])
                     d_grid = np.arange(min_d, max_d, 2.0)
                     
                     resampled = []
@@ -486,8 +495,8 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         r_c = np.interp(d_grid, d_sort, ds['crh'][s_idx])
                         resampled.append({'f': r_f, 'r': r_r, 'z': r_z, 'spd': r_s, 'crh': r_c, 'm': ds['m'], 'b': ds['b']})
                         
-                    axs_map = [fig.add_subplot(gs[0, i]) for i in range(3)]
-                    axs_reg = [fig.add_subplot(gs[1, i]) for i in range(3)]
+                    axs_map = [fig.add_subplot(gs[0, i]) for i in range(len(datasets))]
+                    axs_reg = [fig.add_subplot(gs[1, i]) for i in range(len(datasets))]
                     reg_dots = []
                     
                     for i, (ds, rds, title) in enumerate(zip(datasets, resampled, titles)):
@@ -508,7 +517,7 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         e_idx = frame + 1
                         
                         ret = []
-                        for i in range(3):
+                        for i in range(len(datasets)):
                             rds = resampled[i]
                             axs_map[i].clear()
                             axs_map[i].set_xlim(np.max(rds['f'])+2, np.min(rds['f'])-2)
@@ -542,10 +551,10 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         if '<' in ans_raw:
                             project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                             from analysis.projects import save_to_project
-                            subf = os.path.join(headless_config.get('run_folder', ''), f"F12L4_{ts}") if headless else f"F12L4_{ts}"
+                            subf = os.path.join(headless_config.get('run_folder', ''), f"F11L4_{ts}") if headless else f"F11L4_{ts}"
                             save_to_project(fig, project_name, f"L4_Tradeoff_{file_basename}.mp4", subfolder=subf, is_video=True, ani=ani)
                         else:
-                            out_dir = os.path.join("exports", f"F12L4_{ts}")
+                            out_dir = os.path.join("exports", f"F11L4_{ts}")
                             os.makedirs(out_dir, exist_ok=True)
                             out_file = os.path.join(out_dir, f"L4_Tradeoff_{file_basename}.mp4")
                             ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
@@ -618,11 +627,11 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
                         from analysis.projects import save_to_project
                         subf = headless_config.get('run_folder') if headless else None
-                        save_to_project(fig, project_name, f"F12L1_{ts}_{file_basename}.png", subfolder=subf)
+                        save_to_project(fig, project_name, f"F11L1_{ts}_{file_basename}.png", subfolder=subf)
                     else:
                         export_dir = "exports"
                         os.makedirs(export_dir, exist_ok=True)
-                        out = os.path.join(export_dir, f"F12L1_{ts}_{file_basename}.png")
+                        out = os.path.join(export_dir, f"F11L1_{ts}_{file_basename}.png")
                         plt.savefig(out, dpi=300, bbox_inches='tight')
                         print(f"  [+] Saved to {out}")
                     plt.close(fig)
