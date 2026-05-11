@@ -546,39 +546,17 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             print(f"  [!] Error loading reference file: {e}")
                             break
                     else:
-                        telemetry_dir = "telemetry"
-                        if not os.path.exists(telemetry_dir):
-                            print(f"  [!] Directory '{telemetry_dir}' not found.")
+                        from ui.tui_ref_selector import select_reference_file
+                        result = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
+                        if not result or result[0] is None:
                             continue
-                            
-                        ld_files = [f for f in os.listdir(telemetry_dir) if f.lower().endswith(('.ld', '.ibt'))]
-                        ld_files.sort()
                         
-                        if not ld_files:
-                            print("  [!] No files found in telemetry directory.")
-                            continue
-                            
-                        print("\n  Select Reference File:")
-                        for i, lf in enumerate(ld_files):
-                            print(f"    {i+1}. {lf}")
-                        print("  ─" * 20)
-                        ref_choice = input("  Selection (number): ").strip()
-                        try:
-                            ref_idx = int(ref_choice) - 1
-                            if not (0 <= ref_idx < len(ld_files)):
-                                raise ValueError()
-                        except ValueError:
-                            print("  [!] Invalid selection.")
-                            continue
-                            
-                        ref_path = os.path.join(telemetry_dir, ld_files[ref_idx])
-                        print(f"  [*] Loading Reference: {os.path.basename(ref_path)}")
+                        ref_path, ref_laps, ref_data, ref_channels, ref_metadata = result
                         
-                        try:
-                            ref_data, _, ref_channels, ref_metadata = load_telemetry(ref_path)
-                        except Exception as e:
-                            print(f"  [!] Error loading reference file: {e}")
-                            continue
+                        if ref_laps and 'Lap' in ref_data:
+                            ref_metadata['selected_laps'] = ref_laps
+                        
+                        print(f"  [*] Loaded Reference: {os.path.basename(ref_path)}")
                         
                     # Process Reference File
                     r_lat_g_ch = ref_channels.get('lat')

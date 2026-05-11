@@ -302,20 +302,17 @@ def run_pitch_analyzer(sessions, headless=False, headless_config=None):
                             print(f"  [!] Error loading reference file: {e}")
                             break
                     else:
-                        telemetry_dir = "telemetry"
-                        ld_files = [f for f in os.listdir(telemetry_dir) if f.lower().endswith(('.ld', '.ibt'))]
-                        ld_files.sort()
-                        
-                        print("\n  Select Reference File:")
-                        for i, lf in enumerate(ld_files): print(f"    {i+1}. {lf}")
-                        ref_choice = input("  Selection (number): ").strip()
-                        try:
-                            ref_idx = int(ref_choice) - 1
-                            ref_path = os.path.join(telemetry_dir, ld_files[ref_idx])
-                            r_data, _, r_channels, r_metadata = load_telemetry(ref_path)
-                        except:
-                            print("  [!] Invalid selection.")
+                        from ui.tui_ref_selector import select_reference_file
+                        result = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
+                        if not result or result[0] is None:
                             continue
+                        
+                        ref_path, ref_laps, r_data, r_channels, r_metadata = result
+                        
+                        if ref_laps and 'Lap' in r_data:
+                            r_metadata['selected_laps'] = ref_laps
+                        
+                        print(f"  [*] Loaded Reference: {os.path.basename(ref_path)}")
                             
                     # Process Reference
                     r_speed_raw = r_data[speed_ch].data

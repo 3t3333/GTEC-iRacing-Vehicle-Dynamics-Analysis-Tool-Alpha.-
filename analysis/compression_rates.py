@@ -296,12 +296,12 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                 import textwrap
                 
                 print("\n  [+] Select Reference File 1")
-                res1 = select_reference_file(file_path)
+                res1 = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
                 if not res1 or not res1[0]: continue
                 r1_path, r1_laps, r1_data, r1_channels, r1_md = res1
                 
                 print("\n  [+] Select Reference File 2")
-                res2 = select_reference_file(file_path)
+                res2 = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
                 if not res2 or not res2[0]: continue
                 r2_path, r2_laps, r2_data, r2_channels, r2_md = res2
                 

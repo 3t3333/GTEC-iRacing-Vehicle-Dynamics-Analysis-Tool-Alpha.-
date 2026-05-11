@@ -349,7 +349,9 @@ def run_manual_analysis(project_name, state):
                 'limit': limit,
                 'channels': channels,
                 'metadata': metadata,
-                'distance_bounds': distance_bounds
+                'distance_bounds': distance_bounds,
+                'project_name': project_name,
+                'project_files': state['linked_files']
             })
         else:
             sessions.append({
@@ -357,7 +359,9 @@ def run_manual_analysis(project_name, state):
                 'data': data,
                 'limit': limit,
                 'channels': channels,
-                'metadata': metadata
+                'metadata': metadata,
+                'project_name': project_name,
+                'project_files': state['linked_files']
             })
         
         while True:

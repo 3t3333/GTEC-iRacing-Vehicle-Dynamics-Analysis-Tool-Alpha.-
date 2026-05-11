@@ -466,7 +466,7 @@ def run_aero_mapping(sessions, headless=False, headless_config=None):
                             break
                     else:
                         from ui.tui_ref_selector import select_reference_file
-                        result = select_reference_file(file_path)
+                        result = select_reference_file(file_path, project_files=session.get('project_files'), project_name=session.get('project_name'))
                         if not result or result[0] is None:
                             continue
                         
