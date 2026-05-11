@@ -699,7 +699,7 @@ def set_baseline(name, path, state):
         print("[!] Invalid selection.")
     input("\nPress Enter to continue...")
 
-def save_to_project(fig, project_name, filename, subfolder=None):
+def save_to_project(fig, project_name, filename, subfolder=None, is_video=False, ani=None):
     path = os.path.join(PROJECTS_DIR, project_name)
     if not os.path.exists(path):
         print(f"[!] Project '{project_name}' not found. Saving to global exports instead.")
@@ -711,9 +711,14 @@ def save_to_project(fig, project_name, filename, subfolder=None):
             os.makedirs(export_dir, exist_ok=True)
             export_path = os.path.join(export_dir, filename)
         else:
-            export_path = os.path.join(path, "exports", filename)
+            export_dir = os.path.join(path, "exports")
+            os.makedirs(export_dir, exist_ok=True)
+            export_path = os.path.join(export_dir, filename)
         
-    fig.savefig(export_path, dpi=300, bbox_inches='tight')
+    if is_video and ani:
+        ani.save(export_path, writer='ffmpeg', fps=30, dpi=120)
+    else:
+        fig.savefig(export_path, dpi=300, bbox_inches='tight')
     print(f"  [+] Saved to {export_path}")
 
 def browse_and_pull():

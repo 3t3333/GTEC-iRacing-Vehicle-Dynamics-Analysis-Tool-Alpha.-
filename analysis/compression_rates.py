@@ -273,12 +273,18 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         else: plt.show()
                     elif ans == 'print l2':
                         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                        out_dir = os.path.join("exports", f"F12L2_{ts}")
-                        os.makedirs(out_dir, exist_ok=True)
-                        out_file = os.path.join(out_dir, f"L2_Animation_{file_basename}.mp4")
                         print(f"      Rendering MP4 ({len(d_grid)} frames @ 30fps)...")
-                        ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
-                        print(f"  [+] Saved Animation to: {out_file}")
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = os.path.join(headless_config.get('run_folder', ''), f"F12L2_{ts}") if headless else f"F12L2_{ts}"
+                            save_to_project(fig, project_name, f"L2_Animation_{file_basename}.mp4", subfolder=subf, is_video=True, ani=ani)
+                        else:
+                            out_dir = os.path.join("exports", f"F12L2_{ts}")
+                            os.makedirs(out_dir, exist_ok=True)
+                            out_file = os.path.join(out_dir, f"L2_Animation_{file_basename}.mp4")
+                            ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
+                            print(f"  [+] Saved Animation to: {out_file}")
                     plt.close(fig)
                 except Exception as e:
                     print(f"  [!] Animation Error: {e}")
@@ -448,9 +454,15 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         else: plt.show()
                     else:
                         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                        out = os.path.join("exports", f"F12L3_{ts}_Tradeoff.png")
-                        plt.savefig(out, dpi=300, bbox_inches='tight')
-                        print(f"  [+] Saved L3 to {out}")
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = headless_config.get('run_folder') if headless else None
+                            save_to_project(fig, project_name, f"F12L3_{ts}_Tradeoff.png", subfolder=subf)
+                        else:
+                            out = os.path.join("exports", f"F12L3_{ts}_Tradeoff.png")
+                            plt.savefig(out, dpi=300, bbox_inches='tight')
+                            print(f"  [+] Saved L3 to {out}")
                     plt.close(fig)
                     
                 elif ans in ['open l4', 'print l4']:
@@ -526,12 +538,18 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                         else: plt.show()
                     else:
                         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                        out_dir = os.path.join("exports", f"F12L4_{ts}")
-                        os.makedirs(out_dir, exist_ok=True)
-                        out_file = os.path.join(out_dir, f"L4_Tradeoff_{file_basename}.mp4")
                         print(f"      Rendering MP4 ({len(d_grid)} frames)...")
-                        ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
-                        print(f"  [+] Saved Animation to: {out_file}")
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = os.path.join(headless_config.get('run_folder', ''), f"F12L4_{ts}") if headless else f"F12L4_{ts}"
+                            save_to_project(fig, project_name, f"L4_Tradeoff_{file_basename}.mp4", subfolder=subf, is_video=True, ani=ani)
+                        else:
+                            out_dir = os.path.join("exports", f"F12L4_{ts}")
+                            os.makedirs(out_dir, exist_ok=True)
+                            out_file = os.path.join(out_dir, f"L4_Tradeoff_{file_basename}.mp4")
+                            ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
+                            print(f"  [+] Saved Animation to: {out_file}")
                     plt.close(fig)
 
 
@@ -596,11 +614,17 @@ def run_compression_rates(sessions, headless=False, headless_config=None):
                     else: plt.show()
                 elif ans == 'print l1':
                     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                    export_dir = "exports"
-                    os.makedirs(export_dir, exist_ok=True)
-                    out = os.path.join(export_dir, f"F12L1_{ts}_{file_basename}.png")
-                    plt.savefig(out, dpi=300, bbox_inches='tight')
-                    print(f"  [+] Saved to {out}")
+                    if '<' in ans_raw:
+                        project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                        from analysis.projects import save_to_project
+                        subf = headless_config.get('run_folder') if headless else None
+                        save_to_project(fig, project_name, f"F12L1_{ts}_{file_basename}.png", subfolder=subf)
+                    else:
+                        export_dir = "exports"
+                        os.makedirs(export_dir, exist_ok=True)
+                        out = os.path.join(export_dir, f"F12L1_{ts}_{file_basename}.png")
+                        plt.savefig(out, dpi=300, bbox_inches='tight')
+                        print(f"  [+] Saved to {out}")
                     plt.close(fig)
                     
         print("\n" + "─"*100)
