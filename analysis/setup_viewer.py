@@ -128,7 +128,12 @@ def run_setup_history(project_name, state):
     
     for fp in project_files:
         try:
-            _, _, _, md = load_telemetry(fp, meta_only=True)
+            from core import ibt_adapter
+            if fp.lower().endswith('.ibt'):
+                d = ibt_adapter.fromfile(fp, meta_only=True)
+                md = {'session_info_yaml': d.head.session_info_yaml}
+            else:
+                _, _, _, md = load_telemetry(fp)
             y_str = md.get('session_info_yaml', '')
             flat = extract_flat_setup(y_str)
             raw = get_raw_setup_dict(y_str)
