@@ -224,7 +224,7 @@ sys.path.insert(0, base_path)
 import numpy as np
 from core.config import get_gui_mode, set_gui_mode, save_config, load_config
 from core.telemetry import load_telemetry, ldHead, ldData
-from analysis.setup_viewer import run_setup_history
+from analysis.setup_viewer import run_setup_history, run_static_setup_viewer
 from analysis.aero_rake import run_rake_analysis
 from analysis.tire_performance import run_tire_analysis, run_sector_tire_analysis
 from analysis.tire_fuel_windows import run_tire_fuel_windows
@@ -511,7 +511,7 @@ def main():
             if tool_choice == '1':
                 run_tire_energy_profiler(sessions)
             elif tool_choice == '2':
-                run_setup_viewer(sessions)
+                run_static_setup_viewer(sessions)
             elif tool_choice == '3':
                 run_rake_analysis(sessions)
             elif tool_choice == '4':

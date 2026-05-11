@@ -219,3 +219,29 @@ def run_setup_history(project_name, state):
         
         print("\n" + "─" * 100)
         input("Press Enter to return to History Viewer...")
+
+def run_static_setup_viewer(sessions):
+    """Fallback viewer for the Automator and Global Fast Tools (No history available)."""
+    if not sessions: return
+    for session in sessions:
+        file_path = session['file_path']
+        md = session.get('metadata', {})
+        print(f"\nAnalyzing Static Setup: {os.path.basename(file_path)}")
+        
+        y_str = md.get('session_info_yaml', '')
+        raw = get_raw_setup_dict(y_str)
+        if not raw:
+            print("  [!] No YAML setup data found.")
+            continue
+            
+        print("\n ┌" + "─" * 43 + "┐")
+        print(" │ [ STATIC SETUP YAML ]" + " " * 22 + "│")
+        print(" ├" + "─" * 43 + "┤")
+        
+        lines = dict_to_lines(raw, {})
+        for line in lines:
+            pad = pad_line(line, 41)
+            print(f" │ {pad} │")
+            
+        print(" └" + "─" * 43 + "┘")
+        print("\n" + "─" * 100)

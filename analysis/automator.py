@@ -10,7 +10,7 @@ from ui.metadata_printer import print_session_metadata
 from core.config import load_config, save_config, get_gui_mode, set_gui_mode
 
 from analysis.roll_gradient import run_roll_analysis
-from analysis.setup_viewer import run_setup_viewer
+from analysis.setup_viewer import run_static_setup_viewer
 from analysis.aero_rake import run_rake_analysis
 from analysis.math_sandbox import run_custom_math_graph
 
@@ -234,8 +234,8 @@ def run_automator(sessions):
                         print(f"\n[{t_name}]")
                         print("-" * len(f"[{t_name}]"))
                         if t == '2': 
-                            from analysis.setup_viewer import run_setup_viewer
-                            run_setup_viewer(sessions)
+                            from analysis.setup_viewer import run_static_setup_viewer
+                            run_static_setup_viewer(sessions)
                         elif t == '3': 
                             from analysis.aero_rake import run_rake_analysis
                             run_rake_analysis(sessions)
