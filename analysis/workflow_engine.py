@@ -116,8 +116,8 @@ def create_workbook():
                             print("─"*80)
                             
             if len(valid_layouts) == 1:
-            print(f"\n  [+] Auto-selected {valid_layouts[0]} (Only 1 layout available).")
-            layout = valid_layouts[0]
+                print(f"\n  [+] Auto-selected {valid_layouts[0]} (Only 1 layout available).")
+                layout = valid_layouts[0]
             else:
                 print(f"\n  [ ADD LAYOUT ]: Type 'Add L1', 'Add L2', etc. from the options: {', '.join(valid_layouts)}")
                 ans = input("  Selection: ").strip().lower()
