@@ -11,8 +11,9 @@ from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph
 from core.config import get_gui_mode
 
-def run_custom_math_graph(sessions):
+def run_custom_math_graph(sessions, headless=False, headless_config=None):
     while True:
+        if headless: break # Sandbox is interactive only
         splash.print_header("Custom Math Graphing Tool (Sandbox)")
         
         print("  Create a custom formula using channel names in brackets.")

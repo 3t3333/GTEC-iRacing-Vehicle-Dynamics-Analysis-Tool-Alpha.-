@@ -6,8 +6,9 @@ from scipy.spatial import cKDTree
 import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 
-def run_tire_fuel_windows(sessions):
+def run_tire_fuel_windows(sessions, headless=False, headless_config=None):
     while True:
+        if headless: break # Not headless compatible yet
         splash.print_header("Tire & Fuel Windows")
         
         for session in sessions:

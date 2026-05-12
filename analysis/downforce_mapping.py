@@ -462,9 +462,16 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                             plt.title(title)
                             plt.xlabel("Front Ride Height (mm)")
                             plt.ylabel("Rear Ride Height (mm)")
-                            plt.savefig(filename, dpi=300, bbox_inches='tight')
+                            
+                            if '<' in ans_raw:
+                                project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                                from analysis.projects import save_to_project
+                                subf = headless_config.get('run_folder') if headless else None
+                                save_to_project(plt.gcf(), project_name, base_name, subfolder=subf)
+                            else:
+                                plt.savefig(filename, dpi=300, bbox_inches='tight')
+                                print(f"      [+] Exported {base_name}")
                             plt.close()
-                            print(f"      [+] Exported {base_name}")
                         except Exception as e:
                             print(f"      [-] Skipped {base_name}: Math error ({e}).")
 

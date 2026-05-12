@@ -104,7 +104,7 @@ def run_tire_analysis(sessions):
             sys.exit(0)
         break
 
-def run_sector_tire_analysis(sessions):
+def run_sector_tire_analysis(sessions, headless=False, headless_config=None):
     while True:
         splash.print_header("Sector Tire Temp Performance Graph")
         print("\n  This tool analyzes how cornering tire temperatures correlate with lap times.")
