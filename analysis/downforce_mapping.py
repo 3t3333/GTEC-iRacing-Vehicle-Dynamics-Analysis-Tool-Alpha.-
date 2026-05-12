@@ -1033,13 +1033,18 @@ def run_downforce_mapping(sessions, headless=False, headless_config=None):
                         ani = animation.FuncAnimation(fig, update, frames=len(d_grid), blit=False)
                         
                         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                        export_folder = os.path.join("exports", f"F8L4_{ts}")
-                        os.makedirs(export_folder, exist_ok=True)
-                        out_file = os.path.join(export_folder, f"L4_Animation_{file_basename}.mp4")
-                        
                         print(f"      Rendering MP4 ({len(d_grid)} frames @ 30fps)...")
-                        ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
-                        print(f"  [+] Saved L4 Animation to: {out_file}")
+                        if '<' in ans_raw:
+                            project_name = ans_raw.split('<')[1].strip().replace('[', '').replace(']', '').strip()
+                            from analysis.projects import save_to_project
+                            subf = os.path.join(headless_config.get('run_folder', ''), f"F8L4_{ts}") if headless else f"F8L4_{ts}"
+                            save_to_project(fig, project_name, f"L4_Animation_{file_basename}.mp4", subfolder=subf, is_video=True, ani=ani)
+                        else:
+                            export_folder = os.path.join("exports", f"F8L4_{ts}")
+                            os.makedirs(export_folder, exist_ok=True)
+                            out_file = os.path.join(export_folder, f"L4_Animation_{file_basename}.mp4")
+                            ani.save(out_file, writer='ffmpeg', fps=30, dpi=120)
+                            print(f"  [+] Saved L4 Animation to: {out_file}")
                         
                         plt.close(fig)
                         if headless: break

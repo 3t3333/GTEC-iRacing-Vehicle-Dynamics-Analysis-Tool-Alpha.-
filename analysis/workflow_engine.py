@@ -42,12 +42,16 @@ def create_workbook():
     tasks = []
     features_map = {
         '1': ('Tire Energy & Work Profiler', ['L1']),
-        '3': ('Dynamic Aero/Rake Analyzer', ['L1', 'L2']),
-        '7': ('Empirical Aero Map Generator', ['L1', 'L2']),
-        '8': ('Downforce Mapping Module', ['L1', 'L2']),
-        '9': ('Pitch Kinematics & Platform Analyzer', ['L1', 'L2']),
-        '10': ('Yaw Kinematics & Handling Analyzer', ['L1', 'L2']),
-        '11': ('Total Lateral Load Transfer (TLLTD)', ['L1'])
+        '2': ('Dynamic Aero/Rake Analyzer', ['L1', 'L2']),
+        '3': ('Tire & Fuel Windows', ['L1']),
+        '4': ('Tire Temp/Load Map', ['L1']),
+        '5': ('Custom Math Sandbox', ['L1']),
+        '6': ('Empirical Aero Map Generator', ['L1', 'L2', 'L3']),
+        '7': ('Downforce Mapping Module', ['L1', 'L2', 'L3', 'L4']),
+        '8': ('Pitch Kinematics & Platform Analyzer', ['L1', 'L2']),
+        '9': ('Yaw Kinematics & Handling Analyzer', ['L1', 'L2']),
+        '10': ('Total Lateral Load Transfer (TLLTD)', ['L1']),
+        '11': ('Compression Rates', ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'])
     }
     
     while True:
@@ -83,11 +87,50 @@ def create_workbook():
             if len(valid_layouts) == 1:
                 layout = valid_layouts[0]
             else:
-                layout = input(f"  Select layout for {features_map[f_choice][0]} ({'/'.join(valid_layouts)}): ").strip().upper()
+                import os
+                # Try to extract previews dynamically
+                module_map = {
+                    '1': 'tire_energy.py', '2': 'aero_rake.py', '3': 'tire_fuel_windows.py',
+                    '4': 'tire_performance.py', '5': 'math_sandbox.py', '6': 'aero_mapping.py',
+                    '7': 'downforce_mapping.py', '8': 'pitch_kinematics.py', '9': 'yaw_kinematics.py',
+                    '10': 'load_transfer.py', '11': 'compression_rates.py'
+                }
+                mod_file = module_map.get(f_choice)
+                if mod_file and os.path.exists(os.path.join('analysis', mod_file)):
+                    with open(os.path.join('analysis', mod_file), 'r') as mf:
+                        m_content = mf.read()
+                        
+                        import re
+                        # Look for variable assignments like l1_preview = f"""..."""
+                        previews = re.findall(r'[l|f]\w*_preview\s*=\s*(?:f)?"""(.*?)"""', m_content, re.DOTALL)
+                        
+                        if previews:
+                            print("\n" + "─"*80)
+                            for p in previews:
+                                print(p)
+                            print("─"*80)
+                        else:
+                            # Fallback if variable wasn't found, look for direct print(f"""...""")
+                            raw_prints = re.findall(r'print\(\s*(?:f)?"""(.*?)"""\s*\)', m_content, re.DOTALL)
+                            if raw_prints:
+                                print("\n" + "─"*80)
+                                for p in raw_prints:
+                                    print(p)
+                                print("─"*80)
+                                
+                print(f"\n  [ ADD LAYOUT ]: Type 'Add L1', 'Add L2', etc. from the options: {', '.join(valid_layouts)}")
+                ans = input("  Selection: ").strip().lower()
+                
+                if ans.startswith('add '):
+                    layout = ans.split(' ')[1].upper()
+                else:
+                    layout = ans.upper() # Fallback just in case they just typed 'L2'
+                    
                 if layout not in valid_layouts:
                     print("  [!] Invalid layout.")
                     continue
             tasks.append({'feature': f_choice, 'layout': layout})
+            print(f"  [+] Added Feature {f_choice} -> {layout} to workbook.")
         else:
             print("  [!] Invalid selection.")
             import time
@@ -103,7 +146,7 @@ def view_workbooks():
     for k, v in wbs.items():
         print(f"  ■ {k}")
         for t in v:
-            fname = {"1": "Tire Energy", "3": "Rake Analyzer", "7": "Aero Map", "8": "Downforce Map", "9": "Pitch Analyzer", "10": "Yaw Analyzer", "11": "TLLTD Analyzer"}.get(t['feature'], f"Feature {t['feature']}")
+            fname = {"1": "Tire Energy", "2": "Rake Analyzer", "3": "Tire/Fuel Windows", "4": "Sector Tires", "5": "Math Sandbox", "6": "Aero Map", "7": "Downforce Map", "8": "Pitch Analyzer", "9": "Yaw Analyzer", "10": "TLLTD", "11": "Compression Rates"}.get(t['feature'], f"Feature {t['feature']}")
             print(f"      - {fname} ({t['layout']})")
     input("\nPress Enter to continue...")
 
@@ -217,18 +260,30 @@ def execute_workflow(project_name, state):
         try:
             if f_id == '1':
                 run_tire_energy_profiler(sessions, headless=True, headless_config=config)
-            elif f_id == '3':
+            elif f_id == '2':
                 run_rake_analysis(sessions, headless=True, headless_config=config)
-            elif f_id == '7':
+            elif f_id == '3':
+                from analysis.tire_fuel_windows import run_tire_fuel_windows
+                run_tire_fuel_windows(sessions, headless=True, headless_config=config)
+            elif f_id == '4':
+                from analysis.tire_performance import run_sector_tire_analysis
+                run_sector_tire_analysis(sessions, headless=True, headless_config=config)
+            elif f_id == '5':
+                from analysis.math_sandbox import run_custom_math_graph
+                run_custom_math_graph(sessions, headless=True, headless_config=config)
+            elif f_id == '6':
                 run_aero_mapping(sessions, headless=True, headless_config=config)
-            elif f_id == '8':
+            elif f_id == '7':
                 run_downforce_mapping(sessions, headless=True, headless_config=config)
-            elif f_id == '9':
+            elif f_id == '8':
                 run_pitch_analyzer(sessions, headless=True, headless_config=config)
-            elif f_id == '10':
+            elif f_id == '9':
                 run_yaw_analyzer(sessions, headless=True, headless_config=config)
-            elif f_id == '11':
+            elif f_id == '10':
                 run_tlltd_analyzer(sessions, headless=True, headless_config=config)
+            elif f_id == '11':
+                from analysis.compression_rates import run_compression_rates
+                run_compression_rates(sessions, headless=True, headless_config=config)
         except Exception as e:
             print(f"      [!] Error executing task: {e}")
             import traceback
