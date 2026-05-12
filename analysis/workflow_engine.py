@@ -85,39 +85,39 @@ def create_workbook():
         if f_choice in features_map:
             valid_layouts = features_map[f_choice][1]
             import os
-                # Try to extract previews dynamically
-                module_map = {
-                    '1': 'tire_energy.py', '2': 'aero_rake.py', '3': 'tire_fuel_windows.py',
-                    '4': 'tire_performance.py', '5': 'math_sandbox.py', '6': 'aero_mapping.py',
-                    '7': 'downforce_mapping.py', '8': 'pitch_kinematics.py', '9': 'yaw_kinematics.py',
-                    '10': 'load_transfer.py', '11': 'compression_rates.py'
-                }
-                mod_file = module_map.get(f_choice)
-                if mod_file and os.path.exists(os.path.join('analysis', mod_file)):
-                    with open(os.path.join('analysis', mod_file), 'r') as mf:
-                        m_content = mf.read()
-                        
-                        import re
-                        # Look for variable assignments like l1_preview = f"""..."""
-                        previews = re.findall(r'[l|f]\w*_preview\s*=\s*(?:f)?"""(.*?)"""', m_content, re.DOTALL)
-                        
-                        if previews:
+            # Try to extract previews dynamically
+            module_map = {
+                '1': 'tire_energy.py', '2': 'aero_rake.py', '3': 'tire_fuel_windows.py',
+                '4': 'tire_performance.py', '5': 'math_sandbox.py', '6': 'aero_mapping.py',
+                '7': 'downforce_mapping.py', '8': 'pitch_kinematics.py', '9': 'yaw_kinematics.py',
+                '10': 'load_transfer.py', '11': 'compression_rates.py'
+            }
+            mod_file = module_map.get(f_choice)
+            if mod_file and os.path.exists(os.path.join('analysis', mod_file)):
+                with open(os.path.join('analysis', mod_file), 'r') as mf:
+                    m_content = mf.read()
+                    
+                    import re
+                    # Look for variable assignments like l1_preview = f"""..."""
+                    previews = re.findall(r'[l|f]\w*_preview\s*=\s*(?:f)?"""(.*?)"""', m_content, re.DOTALL)
+                    
+                    if previews:
+                        print("\n" + "─"*80)
+                        for p in previews:
+                            print(p)
+                        print("─"*80)
+                    else:
+                        # Fallback if variable wasn't found, look for direct print(f"""...""")
+                        raw_prints = re.findall(r'print\(\s*(?:f)?"""(.*?)"""\s*\)', m_content, re.DOTALL)
+                        if raw_prints:
                             print("\n" + "─"*80)
-                            for p in previews:
+                            for p in raw_prints:
                                 print(p)
                             print("─"*80)
-                        else:
-                            # Fallback if variable wasn't found, look for direct print(f"""...""")
-                            raw_prints = re.findall(r'print\(\s*(?:f)?"""(.*?)"""\s*\)', m_content, re.DOTALL)
-                            if raw_prints:
-                                print("\n" + "─"*80)
-                                for p in raw_prints:
-                                    print(p)
-                                print("─"*80)
-                                
+                            
             if len(valid_layouts) == 1:
-                print(f"\n  [+] Auto-selected {valid_layouts[0]} (Only 1 layout available).")
-                layout = valid_layouts[0]
+            print(f"\n  [+] Auto-selected {valid_layouts[0]} (Only 1 layout available).")
+            layout = valid_layouts[0]
             else:
                 print(f"\n  [ ADD LAYOUT ]: Type 'Add L1', 'Add L2', etc. from the options: {', '.join(valid_layouts)}")
                 ans = input("  Selection: ").strip().lower()
