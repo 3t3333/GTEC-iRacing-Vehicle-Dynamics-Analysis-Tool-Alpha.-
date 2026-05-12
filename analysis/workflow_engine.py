@@ -7,10 +7,56 @@ WORKBOOKS_FILE = "workbooks.json"
 def load_workbooks():
     if os.path.exists(WORKBOOKS_FILE):
         with open(WORKBOOKS_FILE, 'r') as f:
-            return json.load(f)
+            try:
+                wbs = json.load(f)
+            except:
+                return {}
+                
+        # --- OpenDAV 2.0 Migration Logic ---
+        if wbs and "_version" not in wbs:
+            import time
+            print("\n  [*] Upgrading workbooks.json to OpenDAV 2.0 format...")
+            time.sleep(1)
+            new_wbs = {"_version": "2.0"}
+            
+            # Feature ID Mapping (v1 -> v2)
+            v1_to_v2 = {
+                '1': '1', '3': '2', '4': '3', '5': '4', '6': '5', 
+                '7': '6', '8': '7', '9': '8', '10': '9', '11': '10'
+            }
+            
+            for k, tasks in wbs.items():
+                if k == "_version": continue
+                new_tasks = []
+                for t in tasks:
+                    fid = str(t.get('feature', ''))
+                    if fid == '2':
+                        print(f"      - Removed Setup Viewer from workbook '{k}' (Now project-scoped).")
+                        continue
+                    if fid == '12': # Briefly used in 1.1.0
+                        t['feature'] = '11'
+                        new_tasks.append(t)
+                    elif fid in v1_to_v2:
+                        t['feature'] = v1_to_v2[fid]
+                        new_tasks.append(t)
+                new_wbs[k] = new_tasks
+                
+            wbs = new_wbs
+            
+            # Save the migrated workbooks
+            with open(WORKBOOKS_FILE, 'w') as out_f:
+                json.dump(wbs, out_f, indent=4)
+                
+            print("  [+] Workbooks successfully migrated to v2.0.\n")
+            time.sleep(1)
+            
+        # Strip _version when returning to prevent UI clutter
+        return {k: v for k, v in wbs.items() if k != "_version"}
     return {}
 
 def save_workbooks(wbs):
+    # Ensure version string stays intact
+    wbs['_version'] = "2.0"
     with open(WORKBOOKS_FILE, 'w') as f:
         json.dump(wbs, f, indent=4)
 
