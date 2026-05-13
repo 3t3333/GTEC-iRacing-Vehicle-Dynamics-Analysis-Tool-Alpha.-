@@ -171,6 +171,19 @@ class SandboxTUI:
             self.result = ('quit', None)
             event.app.exit()
 
+    def _enter_sidebar_menu(self):
+        if self.sb_idx == 0: 
+            self.mode = 'sidebar_calc'
+            self.current_list = ["RH center", "Downforce", "Aero Balance"]
+            self.sb_idx = 0; self.sb_scroll = 0
+        elif self.sb_idx == 1: 
+            self.mode = 'sidebar_cat'
+            self.current_list = self.cat_keys
+            self.sb_idx = 0; self.sb_scroll = 0
+        elif self.sb_idx == 2: 
+            self.mode = 'sidebar_syntax'
+            self.current_list = []
+            
     def _get_sidebar_text(self):
         res = []
         res.append(("", "\n\n"))
