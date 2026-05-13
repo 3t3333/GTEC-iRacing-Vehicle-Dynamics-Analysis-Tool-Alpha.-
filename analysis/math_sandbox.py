@@ -380,12 +380,19 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
                 plt.tight_layout(); fig.subplots_adjust(top=0.92)
                 fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
+                
+                # Diagnostic print before showing
+                print("      [i] Matplotlib rendering triggered. Waiting for window to close...")
+                
                 if get_gui_mode() == 3: 
                     show_ctk_graph(fig, "OpenDAV - Math Sandbox")
                 else: 
+                    import matplotlib.pyplot as plt
+                    plt.ioff() # Force blocking mode just in case
                     plt.show(block=True)
-                    print("\n  [i] Dashboard closed.")
-                    input("  Press Enter to return to editor...")
+                    
+                print("\n  [i] Dashboard closed.")
+                input("  Press Enter to return to editor...")
             except Exception as outer_e:
                 print(f"\n  [!!!] CRASH during rendering: {outer_e}")
                 import traceback; traceback.print_exc()
