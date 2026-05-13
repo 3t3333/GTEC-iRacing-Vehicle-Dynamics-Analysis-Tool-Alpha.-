@@ -336,8 +336,8 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                 lap_ch = channels_map.get('lap', 'Lap')
                 lap_raw = data[lap_ch].data if lap_ch in data else None
                 
-                first_key = list(data.channels.keys())[0]
-                n_points = len(data[first_key].data)
+                time_ch = channels_map.get('time', 'SessionTime')
+                n_points = len(data[time_ch].data) if time_ch in data else len(data['Speed'].data)
                 final_mask = np.ones(n_points, dtype=bool)
                 
                 bounds = session.get('distance_bounds')
@@ -382,8 +382,13 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                 dist = dist_raw[final_mask] if dist_raw is not None else np.arange(len(speed_kmh))
                 
                 math_env = { 'RH Center': rh_center, 'Downforce': df_total, 'Aero Balance': aero_bal, 'Speed': speed_kmh, 'np': np }
-                for ch_name in data.channels: 
-                    math_env[ch_name] = data[ch_name].data[final_mask]
+                for ch_name in data.channels:
+                    ch_data = data[ch_name].data
+                    if len(ch_data) == len(final_mask):
+                        math_env[ch_name] = ch_data[final_mask]
+                    else:
+                        # For static YAML variables (like SpringRateFL), just pass the scalar or 1D array
+                        math_env[ch_name] = ch_data
             except Exception as e:
                 print(f"  [!] Error preparing data: {e}"); input("\nPress Enter..."); continue
             try:
