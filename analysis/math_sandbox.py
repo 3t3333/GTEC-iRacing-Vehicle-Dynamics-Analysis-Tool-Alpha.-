@@ -348,36 +348,45 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                 for ch_name in data.channels: math_env[ch_name] = data[ch_name].data
             except Exception as e:
                 print(f"  [!] Error preparing data: {e}"); input("\\nPress Enter..."); continue
-            fig = plt.figure(figsize=(16, 10), num='OpenDAV - Math Sandbox Dashboard')
-            plt.style.use(matplotx.styles.aura['dark'])
-            gs = GridSpec(3, 2, height_ratios=[1, 2, 1], figure=fig)
-            pane_axes = { 0: fig.add_subplot(gs[0, :]), 1: fig.add_subplot(gs[1, 0]), 2: fig.add_subplot(gs[1, 1]), 3: fig.add_subplot(gs[2, :]) }
-            def evaluate_expr(expr, env):
-                eval_str = expr
-                found_channels = re.findall(r'\[(.*?)\]', eval_str)
-                for c in found_channels:
-                    if c in env: eval_str = eval_str.replace(f'[{c}]', f"env['{c}']")
-                    else: raise ValueError(f"Channel '{c}' not found.")
-                return eval(eval_str, {"__builtins__": {}}, {"env": env, "np": np})
-            for p_id, ax in pane_axes.items():
-                f_str = formulas[p_id]
-                if not f_str: ax.text(0.5, 0.5, f"Pane {p_id} (Empty)", ha='center', va='center', alpha=0.5); continue
-                try:
-                    p_type, p_expr, _ = parse_formula(f_str)
-                    y_data = evaluate_expr(p_expr, math_env)
-                    if p_type == 'L': ax.plot(dist, y_data, c='#0ea5e9', lw=1.5); ax.set_ylabel(p_expr[:20])
-                    elif p_type == 'SP':
-                        x_data = speed_kmh if p_id in (1, 2) else dist
-                        ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
-                    elif p_type == 'LSRL':
-                        x_data = speed_kmh if p_id in (1, 2) else dist
-                        ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
-                        idx = np.isfinite(x_data) & np.isfinite(y_data)
-                        m, b = np.polyfit(x_data[idx], y_data[idx], 1)
-                        ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2); ax.set_title(f"Slope: {m:.4f}", fontsize=10)
-                    ax.grid(True, alpha=0.1)
-                except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
-            plt.tight_layout(); fig.subplots_adjust(top=0.92)
-            fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
-            if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - Math Sandbox")
-            else: plt.show()
+            try:
+                fig = plt.figure(figsize=(16, 10), num='OpenDAV - Math Sandbox Dashboard')
+                plt.style.use(matplotx.styles.aura['dark'])
+                gs = GridSpec(3, 2, height_ratios=[1, 2, 1], figure=fig)
+                pane_axes = { 0: fig.add_subplot(gs[0, :]), 1: fig.add_subplot(gs[1, 0]), 2: fig.add_subplot(gs[1, 1]), 3: fig.add_subplot(gs[2, :]) }
+                def evaluate_expr(expr, env):
+                    eval_str = expr
+                    found_channels = re.findall(r'\[(.*?)\]', eval_str)
+                    for c in found_channels:
+                        if c in env: eval_str = eval_str.replace(f'[{c}]', f"env['{c}']")
+                        else: raise ValueError(f"Channel '{c}' not found.")
+                    return eval(eval_str, {"__builtins__": {}}, {"env": env, "np": np})
+                for p_id, ax in pane_axes.items():
+                    f_str = formulas[p_id]
+                    if not f_str: ax.text(0.5, 0.5, f"Pane {p_id} (Empty)", ha='center', va='center', alpha=0.5); continue
+                    try:
+                        p_type, p_expr, _ = parse_formula(f_str)
+                        y_data = evaluate_expr(p_expr, math_env)
+                        if p_type == 'L': ax.plot(dist, y_data, c='#0ea5e9', lw=1.5); ax.set_ylabel(p_expr[:20])
+                        elif p_type == 'SP':
+                            x_data = speed_kmh if p_id in (1, 2) else dist
+                            ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
+                        elif p_type == 'LSRL':
+                            x_data = speed_kmh if p_id in (1, 2) else dist
+                            ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
+                            idx = np.isfinite(x_data) & np.isfinite(y_data)
+                            m, b = np.polyfit(x_data[idx], y_data[idx], 1)
+                            ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2); ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                        ax.grid(True, alpha=0.1)
+                    except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
+                plt.tight_layout(); fig.subplots_adjust(top=0.92)
+                fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
+                if get_gui_mode() == 3: 
+                    show_ctk_graph(fig, "OpenDAV - Math Sandbox")
+                else: 
+                    plt.show(block=True)
+                    print("\n  [i] Dashboard closed.")
+                    input("  Press Enter to return to editor...")
+            except Exception as outer_e:
+                print(f"\n  [!!!] CRASH during rendering: {outer_e}")
+                import traceback; traceback.print_exc()
+                input("  Press Enter to return to editor...")
