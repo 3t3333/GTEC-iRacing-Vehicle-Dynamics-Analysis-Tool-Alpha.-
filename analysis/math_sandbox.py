@@ -409,7 +409,9 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     try:
                         p_type, p_expr, _ = parse_formula(f_str)
                         y_data = evaluate_expr(p_expr, math_env)
-                        if p_type == 'L': ax.plot(dist, y_data, c='#0ea5e9', lw=1.5); ax.set_ylabel(p_expr[:20])
+                        if p_type == 'L': 
+                            ax.plot(dist, y_data, c='#0ea5e9', lw=1.5)
+                            ax.set_ylabel(p_expr[:20])
                         elif p_type == 'SP':
                             x_data = speed_kmh if p_id in (1, 2) else dist
                             ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
@@ -419,6 +421,11 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                             idx = np.isfinite(x_data) & np.isfinite(y_data)
                             m, b = np.polyfit(x_data[idx], y_data[idx], 1)
                             ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2); ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                        
+                        import matplotlib.ticker as ticker
+                        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=6, prune='both'))
+                        if p_id in (0, 3):
+                            ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=12))
                         ax.grid(True, alpha=0.1)
                     except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
                 plt.tight_layout(); fig.subplots_adjust(top=0.92)
