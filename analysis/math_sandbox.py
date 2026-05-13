@@ -1,6 +1,8 @@
 import os
 import sys
 import re
+import json
+import datetime
 import numpy as np
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.containers import Window, HSplit, WindowAlign, VSplit
@@ -12,6 +14,8 @@ import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 from core.config import get_gui_mode
 from ui.graphing import show_ctk_graph
+
+VMS_DIR = "vms"
 
 STYLE = Style.from_dict({
     'border': '#2D8AE2',
@@ -34,13 +38,21 @@ def parse_formula(math_str):
     else:
         plot_type = 'L'
         expression = math_str.strip()
+        
+    # Check if there is a comma for X,Y plotting (SP/LSRL only)
+    x_expr, y_expr = None, expression
+    if plot_type in ('SP', 'LSRL') and ',' in expression:
+        parts = expression.split(',', 1)
+        x_expr = parts[0].strip()
+        y_expr = parts[1].strip()
+        
     channels = re.findall(r'\[(.*?)\]', expression)
-    return plot_type, expression, channels
+    return plot_type, expression, channels, x_expr, y_expr
 
 class SandboxTUI:
     def __init__(self, formulas, all_channels):
         self.kb = KeyBindings()
-        self.mode = 'pane' # 'pane', 'sidebar_main', 'sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_syntax'
+        self.mode = 'pane' # 'pane', 'sidebar_main', 'sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_syntax', 'sidebar_vms'
         self.active_pane = 0
         self.sb_idx = 0      
         self.sb_scroll = 0
@@ -93,7 +105,7 @@ class SandboxTUI:
                 if self.active_pane == 0: self.active_pane = 1
                 elif self.active_pane in (1, 2): self.active_pane = 3
             else:
-                limit = len(self.current_list) - 1 if self.mode in ('sidebar_calc', 'sidebar_cat', 'sidebar_chan_list') else 2
+                limit = len(self.current_list) - 1 if self.mode in ('sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_vms') else 3
                 if limit < 0: limit = 0
                 self.sb_idx = min(limit, self.sb_idx + 1)
                 if self.sb_idx >= self.sb_scroll + 15:
@@ -145,6 +157,11 @@ class SandboxTUI:
                 else:
                     self.current_list = [ch for ch in self.all_channels if any(k.lower() in ch.lower() for k in keywords)]
                 self.sb_idx = 0; self.sb_scroll = 0
+            elif self.mode == 'sidebar_vms':
+                if self.current_list:
+                    vm_file = self.current_list[self.sb_idx]
+                    self.result = ('load_vm', vm_file)
+                    event.app.exit()
 
         @self.kb.add('i')
         def _(event):
@@ -172,6 +189,12 @@ class SandboxTUI:
             if self.mode == 'pane':
                 self.result = ('print', None)
                 event.app.exit()
+                
+        @self.kb.add('c-s')
+        def _(event):
+            if self.mode == 'pane':
+                self.result = ('save_vm', None)
+                event.app.exit()
 
         @self.kb.add('q')
         def _(event):
@@ -188,6 +211,11 @@ class SandboxTUI:
             self.current_list = self.cat_keys
             self.sb_idx = 0; self.sb_scroll = 0
         elif self.sb_idx == 2: 
+            self.mode = 'sidebar_vms'
+            if not os.path.exists(VMS_DIR): os.makedirs(VMS_DIR)
+            self.current_list = [f for f in os.listdir(VMS_DIR) if f.endswith('.json')]
+            self.sb_idx = 0; self.sb_scroll = 0
+        elif self.sb_idx == 3: 
             self.mode = 'sidebar_syntax'
             self.current_list = []
 
@@ -196,7 +224,7 @@ class SandboxTUI:
         res.append(("", "\n\n"))
         if self.mode == 'sidebar_main':
             res.append(("class:sidebar_title", "  [ DIRECTORY ]\n\n"))
-            items = ["Calculated Channels >>", "Raw Channels >>", "Syntaxing Guide >>"]
+            items = ["Calculated Channels >>", "Raw Channels >>", "Visualization Models >>", "Syntaxing Guide >>"]
             for i, txt in enumerate(items):
                 prefix = "  > " if self.sb_idx == i else "    "
                 cls = "class:sidebar_active" if self.sb_idx == i else "class:sidebar_inactive"
@@ -231,15 +259,28 @@ class SandboxTUI:
             if self.sb_scroll + 15 < len(self.current_list):
                 rem = len(self.current_list) - (self.sb_scroll+15)
                 res.append(("class:sidebar_inactive", f"\n  ... ({rem} more) \n"))
+        elif self.mode == 'sidebar_vms':
+            res.append(("class:sidebar_title", "  [ VISUALIZATION MODELS ]\n"))
+            res.append(("class:sidebar_inactive", "  (Press ENTER to Load)\n\n"))
+            if not self.current_list:
+                res.append(("class:sidebar_inactive", "    No VM presets found.\n    (Press Ctrl+S to save one)"))
+            else:
+                visible_items = self.current_list[self.sb_scroll:self.sb_scroll+15]
+                for idx, vm in enumerate(visible_items):
+                    actual_idx = self.sb_scroll + idx
+                    cls = "class:sidebar_active" if actual_idx == self.sb_idx else "class:sidebar_inactive"
+                    prefix = "  > " if actual_idx == self.sb_idx else "    "
+                    res.append((cls, f"{prefix}{vm}\n"))
         elif self.mode == 'sidebar_syntax':
             res.append(("class:sidebar_title", "  [ SYNTAX GUIDE ]\n"))
             res.append(("class:sidebar_inactive", "  (Press LEFT to return)\n\n"))
-            res.append(("class:action", "  L[channel] \n"))
-            res.append(("class:sidebar_inactive", "    Line Graph vs Dist\n\n"))
-            res.append(("class:action", "  SP[channel] \n"))
-            res.append(("class:sidebar_inactive", "    Scatter Plot\n\n"))
-            res.append(("class:action", "  LSRL[channel] \n"))
-            res.append(("class:sidebar_inactive", "    Scatter + Regression\n\n"))
+            res.append(("class:action", "  L [channel] \n"))
+            res.append(("class:sidebar_inactive", "    Line Graph (Y) vs Distance\n\n"))
+            res.append(("class:action", "  SP [X-channel], [Y-channel] \n"))
+            res.append(("class:sidebar_inactive", "    Scatter Plot (X vs Y)\n\n"))
+            res.append(("class:action", "  LSRL [X-channel], [Y-channel] \n"))
+            res.append(("class:sidebar_inactive", "    Scatter + Regression Line\n\n"))
+            res.append(("class:sidebar_inactive", "  *If no comma is used for SP/LSRL,\n    X defaults to Speed (km/h).\n\n"))
         return res
 
     def _get_panes_text(self):
@@ -285,12 +326,16 @@ class SandboxTUI:
         res.append((b_class(3), "└" + "─" * iw + "┘\n"))
         return res
 
+    def _get_footer(self):
+        footer = " [ESC] Sidebar | [TAB] Panes | [i] Insert | [E] Edit | [Ctrl+S] Save VM | [ENTER] Render | [Ctrl+P] Print | [Q] Quit "
+        return [("class:title", "\\n" + footer.center(120) + "\\n")]
+
     def run(self):
         sidebar_window = Window(content=FormattedTextControl(self._get_sidebar_text), width=40)
         separator = Window(width=3, char=' │ ', style='class:border')
         panes_window = Window(content=FormattedTextControl(self._get_panes_text), width=85)
         layout = Layout(HSplit([VSplit([sidebar_window, separator, panes_window]), 
-                               Window(content=FormattedTextControl(lambda: [("class:title", "\\n" + " [ESC] Sidebar | [TAB] Panes | [i] Insert | [E] Edit | [Bksp] Clear | [ENTER] Render | [Ctrl+P] Print | [Q] Quit ".center(120) + "\\n")]), height=2)]))
+                               Window(content=FormattedTextControl(self._get_footer), height=2)]))
         app = Application(layout=layout, key_bindings=self.kb, full_screen=True, style=STYLE)
         app.run()
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -312,10 +357,32 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
             pane_id = payload
             splash.clear_screen()
             splash.print_header(f"Edit Formula: Pane {pane_id}")
-            print("  Syntax: L [channel] (Line), SP [channel] (Scatter), LSRL [channel] (Regression)")
+            print("  Syntax: L [Y-expr], SP [X-expr], [Y-expr], LSRL [X-expr], [Y-expr]")
             print(f"  Current: {formulas[pane_id]}")
             new_f = input("\\n  Enter new formula: ").strip()
             if new_f: formulas[pane_id] = new_f
+        elif action == 'save_vm':
+            splash.clear_screen()
+            splash.print_header("Save Visualization Model (Preset)")
+            print("  Save current 4-pane configuration as a JSON preset.")
+            name = input("\\n  Enter VM Name (e.g. Aero_Efficiency): ").strip().replace(' ', '_')
+            if name:
+                os.makedirs(VMS_DIR, exist_ok=True)
+                with open(os.path.join(VMS_DIR, f"{name}.json"), 'w') as f:
+                    json.dump({"name": name, "panes": formulas}, f, indent=4)
+                print(f"\\n  [+] VM Preset saved to {VMS_DIR}/{name}.json")
+                input("  Press Enter to continue...")
+        elif action == 'load_vm':
+            vm_file = payload
+            try:
+                with open(os.path.join(VMS_DIR, vm_file), 'r') as f:
+                    data = json.load(f)
+                    # Convert keys to int as JSON saves them as strings
+                    formulas.update({int(k): v for k, v in data['panes'].items()})
+                print(f"\\n  [+] Loaded VM Preset: {vm_file}")
+            except Exception as e:
+                print(f"\\n  [!] Error loading VM: {e}")
+                input("  Press Enter to continue...")
         elif action in ('render', 'print'):
             import matplotlib.pyplot as plt
             from matplotlib.gridspec import GridSpec
@@ -332,63 +399,47 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                 # Build Sector & Lap Mask
                 dist_ch = channels_map.get('dist', 'Distance')
                 dist_raw = data[dist_ch].data if dist_ch in data else None
-                
                 lap_ch = channels_map.get('lap', 'Lap')
                 lap_raw = data[lap_ch].data if lap_ch in data else None
-                
                 time_ch = channels_map.get('time', 'SessionTime')
                 n_points = len(data[time_ch].data) if time_ch in data else len(data['Speed'].data)
                 final_mask = np.ones(n_points, dtype=bool)
-                
                 bounds = session.get('distance_bounds')
                 if bounds and dist_raw is not None:
                     final_mask &= (dist_raw >= bounds[0]) & (dist_raw <= bounds[1])
-                    
                 md = session.get('metadata', {})
                 sel_laps = md.get('selected_laps')
                 if sel_laps and lap_raw is not None:
                     final_mask &= np.isin(lap_raw, sel_laps)
-                    
                 if not np.any(final_mask):
                     print("  [!] Error: The selected sector mask contains no data.")
-                    input("\nPress Enter to return...")
+                    input("\\nPress Enter to return...")
                     continue
-                
                 spd_ch = next((ch for ch in ['Speed', 'virt_body_v'] if ch in data), 'Speed')
                 raw_speed = data[spd_ch].data[final_mask]
                 speed_kmh = raw_speed * 3.6 if np.max(raw_speed) < 150 else raw_speed
-                
                 fl_rh = data['Ride Height FL'].data[final_mask] * 1000 if 'Ride Height FL' in data else np.zeros_like(speed_kmh)
                 fr_rh = data['Ride Height FR'].data[final_mask] * 1000 if 'Ride Height FR' in data else np.zeros_like(speed_kmh)
                 rl_rh = data['Ride Height RL'].data[final_mask] * 1000 if 'Ride Height RL' in data else np.zeros_like(speed_kmh)
                 rr_rh = data['Ride Height RR'].data[final_mask] * 1000 if 'Ride Height RR' in data else np.zeros_like(speed_kmh)
                 rh_center = (fl_rh + fr_rh + rl_rh + rr_rh) / 4.0
-                
                 fl_l = data['Suspension Load FL'].data[final_mask] if 'Suspension Load FL' in data else np.zeros_like(speed_kmh)
                 fr_l = data['Suspension Load FR'].data[final_mask] if 'Suspension Load FR' in data else np.zeros_like(speed_kmh)
                 rl_l = data['Suspension Load RL'].data[final_mask] if 'Suspension Load RL' in data else np.zeros_like(speed_kmh)
                 rr_l = data['Suspension Load RR'].data[final_mask] if 'Suspension Load RR' in data else np.zeros_like(speed_kmh)
-                
                 overrides = getattr(data, 'overrides', {})
                 phys = overrides.get('physics_model', {})
                 a_mass = phys.get('actual_mass_kg', 1350.0)
-                
                 v_g = data['VertAccel'].data[final_mask] / 9.80665 if 'VertAccel' in data else np.ones_like(speed_kmh)
                 st_w = (a_mass * 9.80665) 
-                
                 df_total = (fl_l + fr_l + rl_l + rr_l) - (st_w * v_g)
                 aero_bal = (((fl_l + fr_l) - (st_w * 0.45 * v_g)) / (df_total + 1e-6)) * 100.0
-                
                 dist = dist_raw[final_mask] if dist_raw is not None else np.arange(len(speed_kmh))
-                
                 math_env = { 'RH Center': rh_center, 'Downforce': df_total, 'Aero Balance': aero_bal, 'Speed': speed_kmh, 'np': np }
                 for ch_name in data.channels:
                     ch_data = data[ch_name].data
-                    if len(ch_data) == len(final_mask):
-                        math_env[ch_name] = ch_data[final_mask]
-                    else:
-                        # For static YAML variables (like SpringRateFL), just pass the scalar or 1D array
-                        math_env[ch_name] = ch_data
+                    if len(ch_data) == len(final_mask): math_env[ch_name] = ch_data[final_mask]
+                    else: math_env[ch_name] = ch_data
             except Exception as e:
                 print(f"  [!] Error preparing data: {e}"); input("\nPress Enter..."); continue
             try:
@@ -409,9 +460,7 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     try:
                         p_type, p_expr, _ = parse_formula(f_str)
                         y_data = evaluate_expr(p_expr, math_env)
-                        if p_type == 'L': 
-                            ax.plot(dist, y_data, c='#0ea5e9', lw=1.5)
-                            ax.set_ylabel(p_expr[:20])
+                        if p_type == 'L': ax.plot(dist, y_data, c='#0ea5e9', lw=1.5); ax.set_ylabel(p_expr[:20])
                         elif p_type == 'SP':
                             x_data = speed_kmh if p_id in (1, 2) else dist
                             ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
@@ -421,39 +470,26 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                             idx = np.isfinite(x_data) & np.isfinite(y_data)
                             m, b = np.polyfit(x_data[idx], y_data[idx], 1)
                             ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2); ax.set_title(f"Slope: {m:.4f}", fontsize=10)
-                        
                         import matplotlib.ticker as ticker
                         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=6, prune='both'))
-                        if p_id in (0, 3):
-                            ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=12))
+                        if p_id in (0, 3): ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=12))
                         ax.grid(True, alpha=0.1)
                     except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
                 plt.tight_layout(); fig.subplots_adjust(top=0.92)
                 fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
-                
                 if action == 'print':
-                    import datetime
                     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
-                    export_dir = "exports"
-                    os.makedirs(export_dir, exist_ok=True)
-                    out = os.path.join(export_dir, f"MathSandbox_{ts}_{os.path.basename(session['file_path'])}.png")
-                    plt.savefig(out, dpi=300, bbox_inches='tight')
-                    plt.close(fig)
-                    print(f"\n  [+] Saved Sandbox Dashboard to: {out}")
+                    os.makedirs("exports", exist_ok=True)
+                    out = os.path.join("exports", f"MathSandbox_{ts}_{os.path.basename(session['file_path'])}.png")
+                    plt.savefig(out, dpi=300, bbox_inches='tight'); plt.close(fig)
+                    print(f"\\n  [+] Saved Sandbox Dashboard to: {out}")
                     input("  Press Enter to return to editor...")
                 else:
-                    # Diagnostic print before showing
-                    print("      [i] Matplotlib rendering triggered. Waiting for window to close...")
-                    if get_gui_mode() == 3: 
-                        show_ctk_graph(fig, "OpenDAV - Math Sandbox")
+                    if get_gui_mode() == 3: show_ctk_graph(fig, "OpenDAV - Math Sandbox")
                     else: 
                         import matplotlib.pyplot as plt
-                        plt.ioff() # Force blocking mode just in case
-                        plt.show(block=True)
-                        
-                    print("\n  [i] Dashboard closed.")
+                        plt.ioff(); plt.show(block=True)
                     input("  Press Enter to return to editor...")
             except Exception as outer_e:
-                print(f"\n  [!!!] CRASH during rendering: {outer_e}")
-                import traceback; traceback.print_exc()
+                print(f"\\n  [!!!] CRASH during rendering: {outer_e}"); import traceback; traceback.print_exc()
                 input("  Press Enter to return to editor...")

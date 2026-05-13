@@ -191,6 +191,11 @@ if __name__ == "__main__":
         update_screen("Patching: creating telemetry directory...")
         os.makedirs("telemetry")
 
+    # Check vms folder for Math Sandbox presets
+    if not os.path.exists("vms"):
+        update_screen("Patching: creating vms directory...")
+        os.makedirs("vms")
+
     if fatal_error:
         sys.stdout.write("\n\n")
         print("\n[!] FATAL ERROR: Required dependencies are missing from the executable.")
