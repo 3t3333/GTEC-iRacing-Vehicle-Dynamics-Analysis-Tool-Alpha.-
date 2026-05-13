@@ -112,20 +112,11 @@ class SandboxTUI:
                 self.sb_scroll = 0
 
         @self.kb.add('right')
-        @self.kb.add('enter')
         def _(event):
-            if self.mode == 'sidebar_main':
-                if self.sb_idx == 0: 
-                    self.mode = 'sidebar_calc'
-                    self.current_list = ["RH Center", "Downforce", "Aero Balance"]
-                    self.sb_idx = 0; self.sb_scroll = 0
-                elif self.sb_idx == 1: 
-                    self.mode = 'sidebar_cat'
-                    self.current_list = self.cat_keys
-                    self.sb_idx = 0; self.sb_scroll = 0
-                elif self.sb_idx == 2: 
-                    self.mode = 'sidebar_syntax'
-                    self.current_list = []
+            if self.mode == 'pane':
+                if self.active_pane == 1: self.active_pane = 2
+            elif self.mode == 'sidebar_main':
+                self._enter_sidebar_menu()
             elif self.mode == 'sidebar_cat':
                 self.active_cat = self.cat_keys[self.sb_idx]
                 self.mode = 'sidebar_chan_list'
@@ -135,9 +126,23 @@ class SandboxTUI:
                 else:
                     self.current_list = [ch for ch in self.all_channels if any(k.lower() in ch.lower() for k in keywords)]
                 self.sb_idx = 0; self.sb_scroll = 0
-            elif self.mode == 'pane' and event.key_sequence[0].name == 'enter':
+
+        @self.kb.add('enter')
+        def _(event):
+            if self.mode == 'pane':
                 self.result = ('render', None)
                 event.app.exit()
+            elif self.mode == 'sidebar_main':
+                self._enter_sidebar_menu()
+            elif self.mode == 'sidebar_cat':
+                self.active_cat = self.cat_keys[self.sb_idx]
+                self.mode = 'sidebar_chan_list'
+                keywords, _ = self.categories[self.active_cat]
+                if keywords == [""]:
+                    self.current_list = self.all_channels
+                else:
+                    self.current_list = [ch for ch in self.all_channels if any(k.lower() in ch.lower() for k in keywords)]
+                self.sb_idx = 0; self.sb_scroll = 0
 
         @self.kb.add('i')
         def _(event):
@@ -182,7 +187,7 @@ class SandboxTUI:
             res.append(("class:sidebar_title", "  [ CALCULATED CHANNELS ]\n"))
             res.append(("class:sidebar_inactive", f"  (Press 'i' to Insert -> Pane {self.active_pane})\n\n"))
             calcs_desc = {
-                "RH Center": "Avg of 4 corners (mm)",
+                "RH center": "Avg of 4 corners (mm)",
                 "Downforce": "Total aero load (N)",
                 "Aero Balance": "Front aero dist (%)"
             }
@@ -335,15 +340,138 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
             if new_f: formulas[pane_id] = new_f
             
         elif action == 'render':
+            import matplotlib.pyplot as plt
+            from matplotlib.gridspec import GridSpec
+            import matplotx
+            
             splash.clear_screen()
-            splash.print_header("Render Mathematical Dashboard")
-            print("  [i] Formula Syntax Parser Output:")
-            for p_id in range(4):
+            splash.print_header("Rendering Math Sandbox Dashboard...")
+            
+            # Setup data context
+            session = sessions[0]
+            data = session['data']
+            channels_map = session['channels']
+            
+            # 1. Pre-calculate standard channels
+            # We want them as NumPy arrays
+            try:
+                # Speed
+                spd_ch = next((ch for ch in ['Speed', 'virt_body_v'] if ch in data), 'Speed')
+                raw_speed = data[spd_ch].data
+                speed_kmh = raw_speed * 3.6 if np.max(raw_speed) < 150 else raw_speed
+                
+                # Ride Heights (mm)
+                fl_rh = data['Ride Height FL'].data * 1000 if 'Ride Height FL' in data else np.zeros_like(speed_kmh)
+                fr_rh = data['Ride Height FR'].data * 1000 if 'Ride Height FR' in data else np.zeros_like(speed_kmh)
+                rl_rh = data['Ride Height RL'].data * 1000 if 'Ride Height RL' in data else np.zeros_like(speed_kmh)
+                rr_rh = data['Ride Height RR'].data * 1000 if 'Ride Height RR' in data else np.zeros_like(speed_kmh)
+                
+                # Calculated channels
+                rh_center = (fl_rh + fr_rh + rl_rh + rr_rh) / 4.0
+                
+                # Downforce (Simplified for sandbox)
+                fl_l = data['Suspension Load FL'].data if 'Suspension Load FL' in data else np.zeros_like(speed_kmh)
+                fr_l = data['Suspension Load FR'].data if 'Suspension Load FR' in data else np.zeros_like(speed_kmh)
+                rl_l = data['Suspension Load RL'].data if 'Suspension Load RL' in data else np.zeros_like(speed_kmh)
+                rr_l = data['Suspension Load RR'].data if 'Suspension Load RR' in data else np.zeros_like(speed_kmh)
+                
+                # Pull project overrides for mass
+                overrides = getattr(data, 'overrides', {})
+                phys = overrides.get('physics_model', {})
+                a_mass = phys.get('actual_mass_kg', 1350.0)
+                
+                v_g = data['VertAccel'].data / 9.80665 if 'VertAccel' in data else np.ones_like(speed_kmh)
+                # Simple static weight approximation if not calculated
+                st_w = (a_mass * 9.80665) 
+                
+                df_total = (fl_l + fr_l + rl_l + rr_l) - (st_w * v_g)
+                aero_bal = (((fl_l + fr_l) - (st_w * 0.45 * v_g)) / (df_total + 1e-6)) * 100.0
+                
+                # Distance for X-axis
+                dist_ch = channels_map.get('dist', 'Distance')
+                dist = data[dist_ch].data if dist_ch in data else np.arange(len(speed_kmh))
+                
+                # Create the math namespace
+                math_env = {
+                    'RH center': rh_center,
+                    'Downforce': df_total,
+                    'Aero Balance': aero_bal,
+                    'Speed': speed_kmh,
+                    'np': np
+                }
+                
+                # Add all raw channels to env
+                for ch_name in data.channels:
+                    math_env[ch_name] = data[ch_name].data
+
+            except Exception as e:
+                print(f"  [!] Error preparing data: {e}")
+                input("\nPress Enter to return...")
+                continue
+
+            # 2. Build Dashboard
+            plt.style.use(matplotx.styles.aura['dark'])
+            fig = plt.figure(figsize=(16, 10), num='OpenDAV - Math Sandbox Dashboard')
+            gs = GridSpec(3, 2, height_ratios=[1, 2, 1], figure=fig)
+            
+            # Map pane IDs to GridSpec
+            pane_axes = {
+                0: fig.add_subplot(gs[0, :]), # Top full
+                1: fig.add_subplot(gs[1, 0]), # Mid Left
+                2: fig.add_subplot(gs[1, 1]), # Mid Right
+                3: fig.add_subplot(gs[2, :])  # Bottom full
+            }
+            
+            def evaluate_expr(expr, env):
+                # Replace [Channel] with env['Channel']
+                eval_str = expr
+                found_channels = re.findall(r'\[(.*?)\]', eval_str)
+                for c in found_channels:
+                    if c in env:
+                        eval_str = eval_str.replace(f'[{c}]', f"env['{c}']")
+                    else:
+                        raise ValueError(f"Channel '{c}' not found.")
+                return eval(eval_str, {"__builtins__": {}}, {"env": env, "np": np})
+
+            for p_id, ax in pane_axes.items():
                 f_str = formulas[p_id]
-                plot_type, expr, chs = parse_formula(f_str)
-                if expr:
-                    print(f"      Pane {p_id}: Type='{plot_type}', Expr='{expr}', Channels={chs}")
-                else:
-                    print(f"      Pane {p_id}: Empty")
+                if not f_str:
+                    ax.text(0.5, 0.5, f"Pane {p_id} (Empty)", ha='center', va='center', alpha=0.5)
+                    continue
+                
+                try:
+                    p_type, p_expr, _ = parse_formula(f_str)
+                    y_data = evaluate_expr(p_expr, math_env)
                     
-            input("\nPress Enter to return to Dashboard Layout...")
+                    if p_type == 'L':
+                        ax.plot(dist, y_data, c='#0ea5e9', lw=1.5)
+                        ax.set_ylabel(p_expr[:20])
+                    elif p_type == 'SP':
+                        # If scatter, we need an X. Default to distance if not specified?
+                        # Let's check if the user used a comma for X,Y? 
+                        # For now, if SP, and it's a square graph, maybe we assume Speed as X?
+                        x_data = speed_kmh if p_id in (1, 2) else dist
+                        ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
+                    elif p_type == 'LSRL':
+                        x_data = speed_kmh if p_id in (1, 2) else dist
+                        ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
+                        # Regression
+                        idx = np.isfinite(x_data) & np.isfinite(y_data)
+                        m, b = np.polyfit(x_data[idx], y_data[idx], 1)
+                        ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2)
+                        ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                        
+                    ax.grid(True, alpha=0.1)
+                except Exception as e:
+                    ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
+
+            plt.tight_layout()
+            fig.subplots_adjust(top=0.92)
+            fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
+            
+            gui_mode = get_gui_mode()
+            if gui_mode == 3:
+                from ui.graphing import show_ctk_graph
+                show_ctk_graph(fig, "OpenDAV - Math Sandbox")
+            else:
+                plt.show()
