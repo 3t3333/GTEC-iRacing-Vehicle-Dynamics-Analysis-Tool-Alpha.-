@@ -458,21 +458,35 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     f_str = formulas[p_id]
                     if not f_str: ax.text(0.5, 0.5, f"Pane {p_id} (Empty)", ha='center', va='center', alpha=0.5); continue
                     try:
-                        p_type, p_expr, _ = parse_formula(f_str)
-                        y_data = evaluate_expr(p_expr, math_env)
-                        if p_type == 'L': ax.plot(dist, y_data, c='#0ea5e9', lw=1.5); ax.set_ylabel(p_expr[:20])
-                        elif p_type == 'SP':
-                            x_data = speed_kmh if p_id in (1, 2) else dist
+                        p_type, p_expr, _, x_expr, y_expr = parse_formula(f_str)
+                        
+                        if p_type == 'L':
+                            y_data = evaluate_expr(p_expr, math_env)
+                            ax.plot(dist, y_data, c='#0ea5e9', lw=1.5)
+                            ax.set_ylabel(p_expr[:20])
+                        elif p_type in ('SP', 'LSRL'):
+                            y_data = evaluate_expr(y_expr, math_env)
+                            if x_expr:
+                                x_data = evaluate_expr(x_expr, math_env)
+                                ax.set_xlabel(x_expr[:20])
+                            else:
+                                x_data = speed_kmh if p_id in (1, 2) else dist
+                                ax.set_xlabel('Speed (km/h)' if p_id in (1, 2) else 'Distance')
+                                
+                            ax.set_ylabel(y_expr[:20])
                             ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
-                        elif p_type == 'LSRL':
-                            x_data = speed_kmh if p_id in (1, 2) else dist
-                            ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
-                            idx = np.isfinite(x_data) & np.isfinite(y_data)
-                            m, b = np.polyfit(x_data[idx], y_data[idx], 1)
-                            ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2); ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                            
+                            if p_type == 'LSRL':
+                                idx = np.isfinite(x_data) & np.isfinite(y_data)
+                                if np.sum(idx) > 2:
+                                    m, b = np.polyfit(x_data[idx], y_data[idx], 1)
+                                    ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2)
+                                    ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                                    
                         import matplotlib.ticker as ticker
                         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=6, prune='both'))
-                        if p_id in (0, 3): ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=12))
+                        if p_id in (0, 3):
+                            ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=12))
                         ax.grid(True, alpha=0.1)
                     except Exception as e: ax.text(0.5, 0.5, f"Error: {e}", color='red', ha='center', va='center')
                 plt.tight_layout(); fig.subplots_adjust(top=0.92)
