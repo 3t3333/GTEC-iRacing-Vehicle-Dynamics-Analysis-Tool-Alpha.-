@@ -167,6 +167,12 @@ class SandboxTUI:
                 self.result = ('edit', self.active_pane)
                 event.app.exit()
 
+        @self.kb.add('c-p')
+        def _(event):
+            if self.mode == 'pane':
+                self.result = ('print', None)
+                event.app.exit()
+
         @self.kb.add('q')
         def _(event):
             self.result = ('quit', None)
@@ -284,7 +290,7 @@ class SandboxTUI:
         separator = Window(width=3, char=' │ ', style='class:border')
         panes_window = Window(content=FormattedTextControl(self._get_panes_text), width=85)
         layout = Layout(HSplit([VSplit([sidebar_window, separator, panes_window]), 
-                               Window(content=FormattedTextControl(lambda: [("class:title", "\\n" + " [ESC] Sidebar | [TAB] Panes | [i] Insert Channel | [E] Edit Formula | [Bksp] Clear | [ENTER] Render | [Q] Quit ".center(120) + "\\n")]), height=2)]))
+                               Window(content=FormattedTextControl(lambda: [("class:title", "\\n" + " [ESC] Sidebar | [TAB] Panes | [i] Insert | [E] Edit | [Bksp] Clear | [ENTER] Render | [Ctrl+P] Print | [Q] Quit ".center(120) + "\\n")]), height=2)]))
         app = Application(layout=layout, key_bindings=self.kb, full_screen=True, style=STYLE)
         app.run()
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -310,7 +316,7 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
             print(f"  Current: {formulas[pane_id]}")
             new_f = input("\\n  Enter new formula: ").strip()
             if new_f: formulas[pane_id] = new_f
-        elif action == 'render':
+        elif action in ('render', 'print'):
             import matplotlib.pyplot as plt
             from matplotlib.gridspec import GridSpec
             import matplotx
@@ -323,31 +329,63 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
             data = session['data']
             channels_map = session['channels']
             try:
+                # Build Sector & Lap Mask
+                dist_ch = channels_map.get('dist', 'Distance')
+                dist_raw = data[dist_ch].data if dist_ch in data else None
+                
+                lap_ch = channels_map.get('lap', 'Lap')
+                lap_raw = data[lap_ch].data if lap_ch in data else None
+                
+                first_key = list(data.channels.keys())[0]
+                n_points = len(data[first_key].data)
+                final_mask = np.ones(n_points, dtype=bool)
+                
+                bounds = session.get('distance_bounds')
+                if bounds and dist_raw is not None:
+                    final_mask &= (dist_raw >= bounds[0]) & (dist_raw <= bounds[1])
+                    
+                md = session.get('metadata', {})
+                sel_laps = md.get('selected_laps')
+                if sel_laps and lap_raw is not None:
+                    final_mask &= np.isin(lap_raw, sel_laps)
+                    
+                if not np.any(final_mask):
+                    print("  [!] Error: The selected sector mask contains no data.")
+                    input("\nPress Enter to return...")
+                    continue
+                
                 spd_ch = next((ch for ch in ['Speed', 'virt_body_v'] if ch in data), 'Speed')
-                raw_speed = data[spd_ch].data
+                raw_speed = data[spd_ch].data[final_mask]
                 speed_kmh = raw_speed * 3.6 if np.max(raw_speed) < 150 else raw_speed
-                fl_rh = data['Ride Height FL'].data * 1000 if 'Ride Height FL' in data else np.zeros_like(speed_kmh)
-                fr_rh = data['Ride Height FR'].data * 1000 if 'Ride Height FR' in data else np.zeros_like(speed_kmh)
-                rl_rh = data['Ride Height RL'].data * 1000 if 'Ride Height RL' in data else np.zeros_like(speed_kmh)
-                rr_rh = data['Ride Height RR'].data * 1000 if 'Ride Height RR' in data else np.zeros_like(speed_kmh)
+                
+                fl_rh = data['Ride Height FL'].data[final_mask] * 1000 if 'Ride Height FL' in data else np.zeros_like(speed_kmh)
+                fr_rh = data['Ride Height FR'].data[final_mask] * 1000 if 'Ride Height FR' in data else np.zeros_like(speed_kmh)
+                rl_rh = data['Ride Height RL'].data[final_mask] * 1000 if 'Ride Height RL' in data else np.zeros_like(speed_kmh)
+                rr_rh = data['Ride Height RR'].data[final_mask] * 1000 if 'Ride Height RR' in data else np.zeros_like(speed_kmh)
                 rh_center = (fl_rh + fr_rh + rl_rh + rr_rh) / 4.0
-                fl_l = data['Suspension Load FL'].data if 'Suspension Load FL' in data else np.zeros_like(speed_kmh)
-                fr_l = data['Suspension Load FR'].data if 'Suspension Load FR' in data else np.zeros_like(speed_kmh)
-                rl_l = data['Suspension Load RL'].data if 'Suspension Load RL' in data else np.zeros_like(speed_kmh)
-                rr_l = data['Suspension Load RR'].data if 'Suspension Load RR' in data else np.zeros_like(speed_kmh)
+                
+                fl_l = data['Suspension Load FL'].data[final_mask] if 'Suspension Load FL' in data else np.zeros_like(speed_kmh)
+                fr_l = data['Suspension Load FR'].data[final_mask] if 'Suspension Load FR' in data else np.zeros_like(speed_kmh)
+                rl_l = data['Suspension Load RL'].data[final_mask] if 'Suspension Load RL' in data else np.zeros_like(speed_kmh)
+                rr_l = data['Suspension Load RR'].data[final_mask] if 'Suspension Load RR' in data else np.zeros_like(speed_kmh)
+                
                 overrides = getattr(data, 'overrides', {})
                 phys = overrides.get('physics_model', {})
                 a_mass = phys.get('actual_mass_kg', 1350.0)
-                v_g = data['VertAccel'].data / 9.80665 if 'VertAccel' in data else np.ones_like(speed_kmh)
+                
+                v_g = data['VertAccel'].data[final_mask] / 9.80665 if 'VertAccel' in data else np.ones_like(speed_kmh)
                 st_w = (a_mass * 9.80665) 
+                
                 df_total = (fl_l + fr_l + rl_l + rr_l) - (st_w * v_g)
                 aero_bal = (((fl_l + fr_l) - (st_w * 0.45 * v_g)) / (df_total + 1e-6)) * 100.0
-                dist_ch = channels_map.get('dist', 'Distance')
-                dist = data[dist_ch].data if dist_ch in data else np.arange(len(speed_kmh))
+                
+                dist = dist_raw[final_mask] if dist_raw is not None else np.arange(len(speed_kmh))
+                
                 math_env = { 'RH Center': rh_center, 'Downforce': df_total, 'Aero Balance': aero_bal, 'Speed': speed_kmh, 'np': np }
-                for ch_name in data.channels: math_env[ch_name] = data[ch_name].data
+                for ch_name in data.channels: 
+                    math_env[ch_name] = data[ch_name].data[final_mask]
             except Exception as e:
-                print(f"  [!] Error preparing data: {e}"); input("\\nPress Enter..."); continue
+                print(f"  [!] Error preparing data: {e}"); input("\nPress Enter..."); continue
             try:
                 fig = plt.figure(figsize=(16, 10), num='OpenDAV - Math Sandbox Dashboard')
                 plt.style.use(matplotx.styles.aura['dark'])
@@ -381,18 +419,28 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                 plt.tight_layout(); fig.subplots_adjust(top=0.92)
                 fig.suptitle(f"OpenDAV Math Sandbox: {os.path.basename(session['file_path'])}", color='white', fontsize=16)
                 
-                # Diagnostic print before showing
-                print("      [i] Matplotlib rendering triggered. Waiting for window to close...")
-                
-                if get_gui_mode() == 3: 
-                    show_ctk_graph(fig, "OpenDAV - Math Sandbox")
-                else: 
-                    import matplotlib.pyplot as plt
-                    plt.ioff() # Force blocking mode just in case
-                    plt.show(block=True)
-                    
-                print("\n  [i] Dashboard closed.")
-                input("  Press Enter to return to editor...")
+                if action == 'print':
+                    import datetime
+                    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+                    export_dir = "exports"
+                    os.makedirs(export_dir, exist_ok=True)
+                    out = os.path.join(export_dir, f"MathSandbox_{ts}_{os.path.basename(session['file_path'])}.png")
+                    plt.savefig(out, dpi=300, bbox_inches='tight')
+                    plt.close(fig)
+                    print(f"\n  [+] Saved Sandbox Dashboard to: {out}")
+                    input("  Press Enter to return to editor...")
+                else:
+                    # Diagnostic print before showing
+                    print("      [i] Matplotlib rendering triggered. Waiting for window to close...")
+                    if get_gui_mode() == 3: 
+                        show_ctk_graph(fig, "OpenDAV - Math Sandbox")
+                    else: 
+                        import matplotlib.pyplot as plt
+                        plt.ioff() # Force blocking mode just in case
+                        plt.show(block=True)
+                        
+                    print("\n  [i] Dashboard closed.")
+                    input("  Press Enter to return to editor...")
             except Exception as outer_e:
                 print(f"\n  [!!!] CRASH during rendering: {outer_e}")
                 import traceback; traceback.print_exc()
