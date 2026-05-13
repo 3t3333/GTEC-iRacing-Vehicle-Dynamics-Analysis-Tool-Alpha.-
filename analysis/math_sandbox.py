@@ -18,53 +18,61 @@ STYLE = Style.from_dict({
     'active_title': '#D2751D bold',
     'action': '#00FFFF bold',
     'sidebar_title': '#ffffff bold',
-    'sidebar_active': '#32CD32 bold', # Green selection in sidebar
+    'sidebar_active': '#D2751D bold', # Orange selection in sidebar
     'sidebar_inactive': '#888888',
     'bg': '#1a1a1a',
 })
 
-# --- SYNTAX PARSING LOGIC (Pre-processor) ---
 def parse_formula(math_str):
-    """
-    Parses the user's custom syntax.
-    Example: 'LSRL [RH Center] + [Ride Height RL] / 4'
-    Returns: plot_type ('L', 'SP', 'LSRL'), pure_math_expression, list_of_channels
-    """
-    if not math_str:
-        return None, None, []
-        
-    # Find prefix (L, SP, or LSRL)
+    if not math_str: return None, None, []
     match = re.match(r'^\s*(LSRL|SP|L)\s+(.*)$', math_str, re.IGNORECASE)
     if match:
         plot_type = match.group(1).upper()
         expression = match.group(2).strip()
     else:
-        plot_type = 'L' # Default to Line if no prefix
+        plot_type = 'L'
         expression = math_str.strip()
-        
-    # Extract all channels in brackets
     channels = re.findall(r'\[(.*?)\]', expression)
     return plot_type, expression, channels
 
-
 class SandboxTUI:
-    def __init__(self, formulas):
+    def __init__(self, formulas, all_channels):
         self.kb = KeyBindings()
-        self.mode = 'pane' # Modes: 'pane', 'sidebar_main', 'sidebar_calc', 'sidebar_raw', 'sidebar_syntax'
-        self.active_pane = 0 # 0: Top, 1: Mid-L, 2: Mid-R, 3: Bottom
-        self.sb_idx = 0      # Sidebar menu index
-        self.result = None
+        self.mode = 'pane' # 'pane', 'sidebar_main', 'sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_syntax'
+        self.active_pane = 0
+        self.sb_idx = 0      
+        self.sb_scroll = 0
         self.formulas = formulas
+        self.all_channels = sorted(all_channels)
+        self.result = None
+        self.current_list = []
+        
+        # Categorization
+        self.categories = {
+            "Dynamics": (["Speed", "LatAccel", "LongAccel", "VertAccel", "Yaw", "Pitch", "Roll", "Velocity", "body_v"], 
+                         "Core vehicle motion and G-forces."),
+            "Suspension": (["shockDefl", "shockVel", "rideHeight", "Suspension Load", "SpringRate", "PerchOffset"],
+                           "Suspension movement and travel."),
+            "Tires": (["temp", "press", "wear", "Tread", "pressure"],
+                      "Thermodynamics and pressure."),
+            "Controls": (["Throttle", "Brake", "Steering", "Clutch", "Gear", "RPM", "Handbrake"],
+                        "Driver inputs."),
+            "Engine": (["Fuel", "WaterTemp", "OilTemp", "OilPress", "Voltage", "ManifoldPress"],
+                      "Power unit and health."),
+            "All Channels": ([""], "Complete list of telemetry sensors.")
+        }
+        self.active_cat = None
+        self.cat_keys = list(self.categories.keys())
 
-        # --- KEY BINDINGS ---
         @self.kb.add('escape')
         def _(event):
-            if self.mode == 'pane':
+            if self.mode == 'pane': 
                 self.mode = 'sidebar_main'
+                self.sb_idx = 0
 
         @self.kb.add('tab')
         def _(event):
-            if self.mode != 'pane':
+            if self.mode != 'pane': 
                 self.mode = 'pane'
 
         @self.kb.add('up')
@@ -72,38 +80,80 @@ class SandboxTUI:
             if self.mode == 'pane':
                 if self.active_pane in (1, 2): self.active_pane = 0
                 elif self.active_pane == 3: self.active_pane = 1
-            elif self.mode == 'sidebar_main':
+            else:
                 self.sb_idx = max(0, self.sb_idx - 1)
+                if self.sb_idx < self.sb_scroll: 
+                    self.sb_scroll = self.sb_idx
 
         @self.kb.add('down')
         def _(event):
             if self.mode == 'pane':
                 if self.active_pane == 0: self.active_pane = 1
                 elif self.active_pane in (1, 2): self.active_pane = 3
-            elif self.mode == 'sidebar_main':
-                self.sb_idx = min(2, self.sb_idx + 1)
+            else:
+                limit = len(self.current_list) - 1 if self.mode in ('sidebar_calc', 'sidebar_cat', 'sidebar_chan_list') else 2
+                if limit < 0: limit = 0
+                self.sb_idx = min(limit, self.sb_idx + 1)
+                if self.sb_idx >= self.sb_scroll + 15:
+                    self.sb_scroll = self.sb_idx - 14
 
         @self.kb.add('left')
         def _(event):
             if self.mode == 'pane':
                 if self.active_pane == 2: self.active_pane = 1
-            elif self.mode != 'sidebar_main' and self.mode.startswith('sidebar_'):
-                self.mode = 'sidebar_main' # Go back to main sidebar
+            elif self.mode == 'sidebar_chan_list': 
+                self.mode = 'sidebar_cat'
+                self.current_list = self.cat_keys
+                self.sb_idx = self.cat_keys.index(self.active_cat) if self.active_cat in self.cat_keys else 0
+                self.sb_scroll = 0
+            elif self.mode != 'sidebar_main': 
+                self.mode = 'sidebar_main'
+                self.sb_idx = 0
+                self.sb_scroll = 0
 
         @self.kb.add('right')
-        def _(event):
-            if self.mode == 'pane':
-                if self.active_pane == 1: self.active_pane = 2
-            elif self.mode == 'sidebar_main':
-                self._enter_sidebar_menu()
-                
         @self.kb.add('enter')
         def _(event):
             if self.mode == 'sidebar_main':
-                self._enter_sidebar_menu()
-            elif self.mode == 'pane':
+                if self.sb_idx == 0: 
+                    self.mode = 'sidebar_calc'
+                    self.current_list = ["RH Center", "Downforce", "Aero Balance"]
+                    self.sb_idx = 0; self.sb_scroll = 0
+                elif self.sb_idx == 1: 
+                    self.mode = 'sidebar_cat'
+                    self.current_list = self.cat_keys
+                    self.sb_idx = 0; self.sb_scroll = 0
+                elif self.sb_idx == 2: 
+                    self.mode = 'sidebar_syntax'
+                    self.current_list = []
+            elif self.mode == 'sidebar_cat':
+                self.active_cat = self.cat_keys[self.sb_idx]
+                self.mode = 'sidebar_chan_list'
+                keywords, _ = self.categories[self.active_cat]
+                if keywords == [""]:
+                    self.current_list = self.all_channels
+                else:
+                    self.current_list = [ch for ch in self.all_channels if any(k.lower() in ch.lower() for k in keywords)]
+                self.sb_idx = 0; self.sb_scroll = 0
+            elif self.mode == 'pane' and event.key_sequence[0].name == 'enter':
                 self.result = ('render', None)
                 event.app.exit()
+
+        @self.kb.add('i')
+        def _(event):
+            if self.mode in ('sidebar_calc', 'sidebar_chan_list') and self.current_list:
+                ch = self.current_list[self.sb_idx]
+                f = self.formulas[self.active_pane]
+                if f and not f.endswith(' '): f += ' '
+                self.formulas[self.active_pane] = f + f"[{ch}] "
+
+        @self.kb.add('backspace')
+        @self.kb.add('delete')
+        @self.kb.add('c-h')
+        def _(event):
+            if self.mode == 'pane':
+                # Quick clear
+                self.formulas[self.active_pane] = ""
 
         @self.kb.add('e')
         def _(event):
@@ -116,57 +166,69 @@ class SandboxTUI:
             self.result = ('quit', None)
             event.app.exit()
 
-    def _enter_sidebar_menu(self):
-        if self.sb_idx == 0: self.mode = 'sidebar_calc'
-        elif self.sb_idx == 1: self.mode = 'sidebar_raw'
-        elif self.sb_idx == 2: self.mode = 'sidebar_syntax'
-
     def _get_sidebar_text(self):
         res = []
         res.append(("", "\n\n"))
         
         if self.mode == 'sidebar_main':
             res.append(("class:sidebar_title", "  [ DIRECTORY ]\n\n"))
-            items = ["Calculated Channels >>", "Channels >>", "Syntaxing Guide >>"]
+            items = ["Calculated Channels >>", "Raw Channels >>", "Syntaxing Guide >>"]
             for i, txt in enumerate(items):
-                if self.mode == 'sidebar_main' and self.sb_idx == i:
-                    res.append(("class:sidebar_active", f"  > {txt}\n\n"))
-                else:
-                    res.append(("class:sidebar_inactive", f"    {txt}\n\n"))
+                prefix = "  > " if self.sb_idx == i else "    "
+                cls = "class:sidebar_active" if self.sb_idx == i else "class:sidebar_inactive"
+                res.append((cls, f"{prefix}{txt}\n\n"))
                     
         elif self.mode == 'sidebar_calc':
             res.append(("class:sidebar_title", "  [ CALCULATED CHANNELS ]\n"))
+            res.append(("class:sidebar_inactive", f"  (Press 'i' to Insert -> Pane {self.active_pane})\n\n"))
+            calcs_desc = {
+                "RH Center": "Avg of 4 corners (mm)",
+                "Downforce": "Total aero load (N)",
+                "Aero Balance": "Front aero dist (%)"
+            }
+            for i, ch in enumerate(self.current_list):
+                cls = "class:sidebar_active" if self.sb_idx == i else "class:sidebar_inactive"
+                prefix = "  > " if self.sb_idx == i else "    "
+                res.append((cls, f"{prefix}[{ch}]\n"))
+                res.append((cls, f"      {calcs_desc[ch]}\n\n"))
+            
+        elif self.mode == 'sidebar_cat':
+            res.append(("class:sidebar_title", "  [ RAW CATEGORIES ]\n"))
             res.append(("class:sidebar_inactive", "  (Press LEFT to return)\n\n"))
+            for i, cat in enumerate(self.current_list):
+                prefix = "  > " if self.sb_idx == i else "    "
+                cls = "class:sidebar_active" if self.sb_idx == i else "class:sidebar_inactive"
+                res.append((cls, f"{prefix}{cat}\n"))
+                if self.sb_idx == i:
+                    res.append(("class:sidebar_inactive", f"    {self.categories[cat][1][:28]}...\n"))
+                res.append(("", "\n"))
+
+        elif self.mode == 'sidebar_chan_list':
+            res.append(("class:sidebar_title", f"  [ {self.active_cat.upper()} ]\n"))
+            res.append(("class:sidebar_inactive", f"  (Press 'i' to Insert -> Pane {self.active_pane})\n\n"))
             
-            res.append(("class:action", "  [RH Center]\n"))
-            res.append(("class:sidebar_inactive", "    Avg of all 4 corners (mm)\n\n"))
+            visible_items = self.current_list[self.sb_scroll:self.sb_scroll+15]
+            for idx, ch in enumerate(visible_items):
+                actual_idx = self.sb_scroll + idx
+                if actual_idx == self.sb_idx:
+                    res.append(("class:sidebar_active", f"  > [{ch}]\n"))
+                else:
+                    res.append(("class:sidebar_inactive", f"    [{ch}]\n"))
             
-            res.append(("class:action", "  [Downforce]\n"))
-            res.append(("class:sidebar_inactive", "    Total aero load (N)\n\n"))
-            
-            res.append(("class:action", "  [Aero Balance]\n"))
-            res.append(("class:sidebar_inactive", "    Front aero dist (%)\n\n"))
-            
-        elif self.mode == 'sidebar_raw':
-            res.append(("class:sidebar_title", "  [ RAW CHANNELS ]\n"))
-            res.append(("class:sidebar_inactive", "  (Press LEFT to return)\n\n"))
-            res.append(("class:action", "  [Speed]\n"))
-            res.append(("class:sidebar_inactive", "    Vehicle Speed (km/h)\n\n"))
-            res.append(("class:action", "  [Ride Height FL] ...\n"))
-            res.append(("class:sidebar_inactive", "    Corner ride heights (mm)\n\n"))
-            res.append(("class:action", "  [Suspension Load FL] ...\n"))
-            res.append(("class:sidebar_inactive", "    Corner loads (N)\n\n"))
+            if self.sb_scroll + 15 < len(self.current_list):
+                rem = len(self.current_list) - (self.sb_scroll+15)
+                res.append(("class:sidebar_inactive", f"\n  ... ({rem} more) \n"))
             
         elif self.mode == 'sidebar_syntax':
             res.append(("class:sidebar_title", "  [ SYNTAX GUIDE ]\n"))
             res.append(("class:sidebar_inactive", "  (Press LEFT to return)\n\n"))
             
-            res.append(("class:action", "  L  \n"))
-            res.append(("class:sidebar_inactive", "    Line Graph vs Distance\n\n"))
+            res.append(("class:action", "  L \n"))
+            res.append(("class:sidebar_inactive", "    Line Graph vs Dist\n\n"))
             res.append(("class:action", "  SP \n"))
             res.append(("class:sidebar_inactive", "    Scatter Plot\n\n"))
             res.append(("class:action", "  LSRL \n"))
-            res.append(("class:sidebar_inactive", "    Scatter + Regression Line\n\n"))
+            res.append(("class:sidebar_inactive", "    Scatter + Regression\n\n"))
             res.append(("class:sidebar_title", "  Example:\n"))
             res.append(("class:action", "  LSRL [RH Center] * 2\n"))
             
@@ -174,56 +236,36 @@ class SandboxTUI:
 
     def _get_panes_text(self):
         res = []
-        
-        # Helper to format lines inside boxes
         def format_f(pane_id, width):
             f_str = self.formulas[pane_id]
             if not f_str: return "  (Empty)  ".center(width)
-            
-            # Truncate if too long
-            if len(f_str) > width - 4:
-                f_str = f_str[:width-7] + "..."
+            if len(f_str) > width - 4: f_str = f_str[:width-7] + "..."
             return f"  {f_str}  ".center(width)
 
         def b_class(pane): return "class:active_border" if (self.active_pane == pane and self.mode == 'pane') else "class:border"
         def t_class(pane): return "class:active_title" if (self.active_pane == pane and self.mode == 'pane') else "class:title"
         
-        iw = 80 # Inner width
-        hw = (iw - 2) // 2 # Half width for mid panes
-
+        iw = 80; hw = (iw - 2) // 2
         res.append(("", "\n\n"))
-        
-        # Top Pane (0)
         res.append((b_class(0), "┌" + "─" * iw + "┐\n"))
-        res.append((b_class(0), "│"))
-        res.append((t_class(0), " [ TOP PANE ] Distance Line Graph ".center(iw)))
-        res.append((b_class(0), "│\n"))
+        res.append((b_class(0), "│" + " [ TOP PANE ] Distance Line Graph ".center(iw) + "│\n"))
         res.append((b_class(0), "│" + " " * iw + "│\n"))
         res.append((b_class(0), "│" + format_f(0, iw) + "│\n"))
         res.append((b_class(0), "│" + " " * iw + "│\n"))
         res.append((b_class(0), "└" + "─" * iw + "┘\n"))
 
-        # Mid Panes (1 & 2)
         res.append((b_class(1), "┌" + "─" * hw + "┐"))
         res.append(("", "  "))
         res.append((b_class(2), "┌" + "─" * hw + "┐\n"))
-        
-        res.append((b_class(1), "│"))
-        res.append((t_class(1), " [ MID-LEFT ] Plot Area ".center(hw)))
-        res.append((b_class(1), "│"))
+        res.append((b_class(1), "│" + " [ MID-LEFT ] Plot Area ".center(hw) + "│"))
         res.append(("", "  "))
-        res.append((b_class(2), "│"))
-        res.append((t_class(2), " [ MID-RIGHT ] Plot Area ".center(hw)))
-        res.append((b_class(2), "│\n"))
+        res.append((b_class(2), "│" + " [ MID-RIGHT ] Plot Area ".center(hw) + "│\n"))
 
         for idx in range(6):
             if idx == 2:
-                # Formula line
-                l_str = format_f(1, hw)
-                r_str = format_f(2, hw)
-                res.append((b_class(1), "│" + l_str + "│"))
+                res.append((b_class(1), "│" + format_f(1, hw) + "│"))
                 res.append(("", "  "))
-                res.append((b_class(2), "│" + r_str + "│\n"))
+                res.append((b_class(2), "│" + format_f(2, hw) + "│\n"))
             else:
                 res.append((b_class(1), "│" + " " * hw + "│"))
                 res.append(("", "  "))
@@ -233,27 +275,23 @@ class SandboxTUI:
         res.append(("", "  "))
         res.append((b_class(2), "└" + "─" * hw + "┘\n"))
 
-        # Bottom Pane (3)
         res.append((b_class(3), "┌" + "─" * iw + "┐\n"))
-        res.append((b_class(3), "│"))
-        res.append((t_class(3), " [ BOTTOM PANE ] Distance Line Graph ".center(iw)))
-        res.append((b_class(3), "│\n"))
+        res.append((b_class(3), "│" + " [ BOTTOM PANE ] Distance Line Graph ".center(iw) + "│\n"))
         res.append((b_class(3), "│" + " " * iw + "│\n"))
         res.append((b_class(3), "│" + format_f(3, iw) + "│\n"))
         res.append((b_class(3), "│" + " " * iw + "│\n"))
         res.append((b_class(3), "└" + "─" * iw + "┘\n"))
-        
         return res
 
     def _get_footer(self):
-        footer = " [ESC] Sidebar | [TAB] Panes | [ARROWS] Navigate | [E] Edit Formula | [ENTER] Render | [Q] Quit "
+        footer = " [ESC] Sidebar | [TAB] Panes | [i] Insert Channel | [E] Edit Formula | [Bksp] Clear | [ENTER] Render | [Q] Quit "
         return [("class:title", "\n" + footer.center(120) + "\n")]
 
     def run(self):
         self.active_pane = 0
         self.result = None
         
-        sidebar_window = Window(content=FormattedTextControl(self._get_sidebar_text), width=35)
+        sidebar_window = Window(content=FormattedTextControl(self._get_sidebar_text), width=40)
         separator = Window(width=3, char=' │ ', style='class:border')
         panes_window = Window(content=FormattedTextControl(self._get_panes_text), width=85)
         
@@ -269,35 +307,34 @@ class SandboxTUI:
 
 
 def run_custom_math_graph(sessions, headless=False, headless_config=None):
-    if headless:
-        print("  [!] Headless sandbox not yet implemented.")
-        return
-
+    if headless: return
+    
+    all_channels = list(sessions[0]['data'].channels.keys())
     formulas = {0: "", 1: "", 2: "", 3: ""}
-    tui = SandboxTUI(formulas)
+    tui = SandboxTUI(formulas, all_channels)
     
     while True:
         splash.clear_screen()
         splash.print_header("Math Sandbox - Dashboard Layout")
         print("\n  Design your custom 4-pane telemetry dashboard.")
         
-        action, payload = tui.run()
+        res = tui.run()
+        if not res: break
         
-        if action == 'quit':
+        action, payload = res
+        if action == 'quit': 
             break
             
         elif action == 'edit':
             pane_id = payload
             splash.clear_screen()
             splash.print_header(f"Edit Formula: Pane {pane_id}")
-            print("  Example: LSRL [RH Center] + [Ride Height RL] / 4\n")
+            print("  Syntax: L [channel] (Line), SP [channel] (Scatter), LSRL [channel] (Regression)")
             print(f"  Current: {formulas[pane_id]}")
             new_f = input("\n  Enter new formula (or press Enter to keep): ").strip()
-            if new_f:
-                formulas[pane_id] = new_f
-                
+            if new_f: formulas[pane_id] = new_f
+            
         elif action == 'render':
-            # This is where we will hook up matplotlib and NumPy eval!
             splash.clear_screen()
             splash.print_header("Render Mathematical Dashboard")
             print("  [i] Formula Syntax Parser Output:")
