@@ -30,24 +30,47 @@ STYLE = Style.from_dict({
 })
 
 def parse_formula(math_str):
-    if not math_str: return None, None, []
-    match = re.match(r'^\s*(LSRL|SP|L)\s+(.*)$', math_str, re.IGNORECASE)
-    if match:
-        plot_type = match.group(1).upper()
-        expression = match.group(2).strip()
-    else:
-        plot_type = 'L'
-        expression = math_str.strip()
+    if not math_str: return []
+    # Split by prefixes L, SP, LSRL. 
+    # To do this safely, we use a regex that looks for space/start + Prefix + space.
+    # Wait, simple way: split by the regex, keeping delimiters.
+    tokens = re.split(r'(?i)(?:^|\s+)(LSRL|SP|L)\s+', math_str)
+    
+    # If the string didn't start with a prefix, the first token is the math expression.
+    commands = []
+    
+    # Parse tokens
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if not tok.strip():
+            i += 1
+            continue
+            
+        if tok.upper() in ('LSRL', 'SP', 'L'):
+            plot_type = tok.upper()
+            if i + 1 < len(tokens):
+                expression = tokens[i+1].strip()
+                i += 2
+            else:
+                break
+        else:
+            plot_type = 'L'
+            expression = tok.strip()
+            i += 1
+            
+        if not expression: continue
+            
+        x_expr, y_expr = None, expression
+        if plot_type in ('SP', 'LSRL') and ',' in expression:
+            parts = expression.split(',', 1)
+            x_expr = parts[0].strip()
+            y_expr = parts[1].strip()
+            
+        channels = re.findall(r'\[(.*?)\]', expression)
+        commands.append((plot_type, expression, channels, x_expr, y_expr))
         
-    # Check if there is a comma for X,Y plotting (SP/LSRL only)
-    x_expr, y_expr = None, expression
-    if plot_type in ('SP', 'LSRL') and ',' in expression:
-        parts = expression.split(',', 1)
-        x_expr = parts[0].strip()
-        y_expr = parts[1].strip()
-        
-    channels = re.findall(r'\[(.*?)\]', expression)
-    return plot_type, expression, channels, x_expr, y_expr
+    return commands
 
 class SandboxTUI:
     def __init__(self, formulas, all_channels):
@@ -458,31 +481,38 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     f_str = formulas[p_id]
                     if not f_str: ax.text(0.5, 0.5, f"Pane {p_id} (Empty)", ha='center', va='center', alpha=0.5); continue
                     try:
-                        p_type, p_expr, _, x_expr, y_expr = parse_formula(f_str)
+                        commands = parse_formula(f_str)
+                        colors = ['#0ea5e9', '#D2751D', '#32CD32', '#FF1493', '#A020F0']
                         
-                        if p_type == 'L':
-                            y_data = evaluate_expr(p_expr, math_env)
-                            ax.plot(dist, y_data, c='#0ea5e9', lw=1.5)
-                            ax.set_ylabel(p_expr[:20])
-                        elif p_type in ('SP', 'LSRL'):
-                            y_data = evaluate_expr(y_expr, math_env)
-                            if x_expr:
-                                x_data = evaluate_expr(x_expr, math_env)
-                                ax.set_xlabel(x_expr[:20])
-                            else:
-                                x_data = speed_kmh if p_id in (1, 2) else dist
-                                ax.set_xlabel('Speed (km/h)' if p_id in (1, 2) else 'Distance')
-                                
-                            ax.set_ylabel(y_expr[:20])
-                            ax.scatter(x_data, y_data, c='white', s=5, alpha=0.3)
+                        for i, (p_type, p_expr, _, x_expr, y_expr) in enumerate(commands):
+                            c_col = colors[i % len(colors)]
                             
-                            if p_type == 'LSRL':
-                                idx = np.isfinite(x_data) & np.isfinite(y_data)
-                                if np.sum(idx) > 2:
-                                    m, b = np.polyfit(x_data[idx], y_data[idx], 1)
-                                    ax.plot(x_data, m*x_data + b, c='#D2751D', lw=2)
-                                    ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                            if p_type == 'L':
+                                y_data = evaluate_expr(p_expr, math_env)
+                                ax.plot(dist, y_data, c=c_col, lw=1.5, label=p_expr[:15])
+                                if i == 0: ax.set_ylabel(p_expr[:20])
+                            elif p_type in ('SP', 'LSRL'):
+                                y_data = evaluate_expr(y_expr, math_env)
+                                if x_expr:
+                                    x_data = evaluate_expr(x_expr, math_env)
+                                    if i == 0: ax.set_xlabel(x_expr[:20])
+                                else:
+                                    x_data = speed_kmh if p_id in (1, 2) else dist
+                                    if i == 0: ax.set_xlabel('Speed (km/h)' if p_id in (1, 2) else 'Distance')
                                     
+                                if i == 0: ax.set_ylabel(y_expr[:20])
+                                ax.scatter(x_data, y_data, c=c_col, s=5, alpha=0.3, label=y_expr[:10])
+                                
+                                if p_type == 'LSRL':
+                                    idx = np.isfinite(x_data) & np.isfinite(y_data)
+                                    if np.sum(idx) > 2:
+                                        m, b = np.polyfit(x_data[idx], y_data[idx], 1)
+                                        ax.plot(x_data, m*x_data + b, c=c_col, lw=2)
+                                        if i == 0: ax.set_title(f"Slope: {m:.4f}", fontsize=10)
+                        
+                        if len(commands) > 1:
+                            ax.legend(loc='upper right', frameon=False, fontsize=8)
+                            
                         import matplotlib.ticker as ticker
                         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=6, prune='both'))
                         if p_id in (0, 3):
