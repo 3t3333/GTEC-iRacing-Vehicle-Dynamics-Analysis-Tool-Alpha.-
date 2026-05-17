@@ -57,7 +57,7 @@ CREATE POLICY "Admins can delete team" ON public.team_members
 DROP POLICY IF EXISTS "Users can auto-heal their own pending row" ON public.team_members;
 CREATE POLICY "Users can auto-heal their own pending row" ON public.team_members
     FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = id AND role = 'pending');
+    WITH CHECK (auth.uid() = id::uuid AND role = 'pending');
 
 -- 4. Auto-Admin Trigger Function
 CREATE OR REPLACE FUNCTION public.handle_new_user() 
