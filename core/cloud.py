@@ -60,11 +60,14 @@ class OpenDAVCloud:
                     check_res = requests.get(f"{self.base_url}/rest/v1/team_members?id=eq.{self.user_id}", headers=self.get_headers())
                     if check_res.status_code == 200 and not check_res.json():
                         # Missing row, heal it
-                        requests.post(
+                        heal_res = requests.post(
                             f"{self.base_url}/rest/v1/team_members", 
                             headers=self.get_headers(),
                             json={"id": self.user_id, "email": email, "role": "pending"}
                         )
+                        if heal_res.status_code == 403:
+                            print(f"\n[!] Auto-Heal Failed: Your database is missing the Auto-Heal RLS policy.")
+                            print("    Please run the updated simgit_setup.sql in your Supabase SQL editor.")
                 except: pass
                 
                 print(f"[+] Successfully logged in as {email}")
