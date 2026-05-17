@@ -1,5 +1,5 @@
 -- ========================================================================================
--- OpenDAV V1.0: SimGit Enterprise Cloud Setup Script
+-- OpenDAV V2.0.1: SimGit Enterprise Cloud Setup Script
 -- Paste this entire script into your Supabase SQL Editor and click RUN.
 -- This script provisions the team database, security triggers, and S3 storage.
 -- ========================================================================================
