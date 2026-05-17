@@ -12,20 +12,12 @@ def show_settings():
         splash.clear_screen()
         splash.print_header("Settings")
         
-        gui_mode = get_gui_mode()
-        data_mode = get_data_mode()
-        
-        gui_str = "Legacy (Matplotlib)" if gui_mode == 1 else "Plotly (Web Interactive)" if gui_mode == 2 else "CustomTkinter (Desktop)"
-        data_str = "Auto-Detect" if data_mode == 1 else "Strict MoTeC (.ld)" if data_mode == 2 else "Strict iRacing (.ibt)"
-        
         auto_str = "Enabled (Fast)" if get_auto_import() else "Disabled (Safe)"
         
-        print(f"  1. GUI Mode: \033[1;36m{gui_str}\033[0m")
-        print(f"  2. Data Source Mode: \033[1;36m{data_str}\033[0m")
-        print(f"  3. Fast iRacing Install (No Prompts): \033[1;36m{auto_str}\033[0m")
-        print(f"  4. OpenDAV Cloud: Login / Sync")
-        print(f"  5. Supabase API Settings")
-        print(f"  6. [Admin] Manage SimGit Team Access")
+        print(f"  1. Fast iRacing Install (No Prompts): [1;36m{auto_str}[0m")
+        print(f"  2. OpenDAV Cloud: Login / Sync")
+        print(f"  3. Supabase API Settings")
+        print(f"  4. [Admin] Manage SimGit Team Access")
         print("─" * 100)
         
         choice = input("\nSelect a setting to change, or 'b' to go back: ").strip().lower()
