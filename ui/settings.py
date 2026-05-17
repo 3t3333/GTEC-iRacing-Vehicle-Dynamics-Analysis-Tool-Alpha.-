@@ -152,7 +152,7 @@ def show_settings():
                     print("  1. Promote to Team Engineer (Push & Pull Access)")
                     print("  2. Promote to Customer / Driver (Pull-Only Access)")
                     print("  3. Revoke Access (Set to Pending)")
-                    print("  4. Delete User entirely")
+                    print("  4. Remove from Team (Account stays in Supabase Auth)")
                     print("  c. Cancel")
                     
                     cmd = input("\n  Action: ").strip().lower()

@@ -53,10 +53,26 @@ class OpenDAVCloud:
             r = requests.post(url, headers=headers, json=payload)
             if r.status_code == 200:
                 self.save_token(r.json())
+                
+                # Auto-heal: If Admin deleted them from team_members, their Auth account still exists
+                # but they have no role. Re-insert them as 'pending' so they aren't stuck in limbo.
+                try:
+                    check_res = requests.get(f"{self.base_url}/rest/v1/team_members?id=eq.{self.user_id}", headers=self.get_headers())
+                    if check_res.status_code == 200 and not check_res.json():
+                        # Missing row, heal it
+                        requests.post(
+                            f"{self.base_url}/rest/v1/team_members", 
+                            headers=self.get_headers(),
+                            json={"id": self.user_id, "email": email, "role": "pending"}
+                        )
+                except: pass
+                
                 print(f"[+] Successfully logged in as {email}")
                 return True
             else:
-                print(f"[!] Login failed: {r.json().get('error_description', 'Unknown error')}")
+                resp = r.json()
+                msg = resp.get('error_description') or resp.get('msg') or str(resp)
+                print(f"[!] Login failed: {msg}")
                 return False
         except Exception as e:
             print(f"[!] Network error: {e}")
@@ -78,7 +94,9 @@ class OpenDAVCloud:
                 print(f"[+] Account created for {email}! You can now login.")
                 return True
             else:
-                print(f"[!] Signup failed: {r.json().get('msg', r.json().get('error_description', 'Unknown error'))}")
+                resp = r.json()
+                msg = resp.get('msg') or resp.get('error_description') or str(resp)
+                print(f"[!] Signup failed: {msg}")
                 return False
         except Exception as e:
             print(f"[!] Network error: {e}")
@@ -131,6 +149,15 @@ class OpenDAVCloud:
             print(f"  [!] Network error: {e}")
             
         if not projects and r.status_code == 200:
+            # Maybe it's empty, or maybe they don't have permission! Let's check their role.
+            try:
+                role_res = requests.get(f"{self.base_url}/rest/v1/team_members?id=eq.{self.user_id}", headers=self.get_headers())
+                if role_res.status_code == 200 and role_res.json():
+                    role = role_res.json()[0].get('role', 'pending')
+                    if role == 'pending':
+                        print("  [!] Access Denied: Your account is 'Pending'. An Admin must approve you.")
+                        return []
+            except: pass
             print("  [!] Your team's SimGit cloud repository is currently empty.")
             
         return projects
