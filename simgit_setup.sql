@@ -54,6 +54,7 @@ CREATE POLICY "Admins can delete team" ON public.team_members
     USING (public.is_admin());
 
 -- Allow users to auto-heal their own row if an admin deleted them but Auth remains
+DROP POLICY IF EXISTS "Users can auto-heal their own pending row" ON public.team_members;
 CREATE POLICY "Users can auto-heal their own pending row" ON public.team_members
     FOR INSERT TO authenticated
     WITH CHECK (auth.uid() = id AND role = 'pending');
@@ -159,7 +160,7 @@ CREATE POLICY "SimGit Team Write Access" ON storage.objects
 	
 -- SQL Fix on 5/17/2026 morning.
 CREATE POLICY "Users can auto-heal their own pending row" ON public.team_members
-		FOR INSERT TO authenicated 
+		FOR INSERT TO authenticated 
 		WITH CHECK (auth.uid() = id AND role = 'pending'); 
 
 -- Done! SimGit is now ready for production.
