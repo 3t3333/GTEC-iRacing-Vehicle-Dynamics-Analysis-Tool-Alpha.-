@@ -97,6 +97,9 @@ class OpenDAVCloud:
                 resp = r.json()
                 msg = resp.get('msg') or resp.get('error_description') or str(resp)
                 print(f"[!] Signup failed: {msg}")
+                if "already registered" in msg.lower():
+                    print("    (If an admin previously removed your account from the team,")
+                    print("     your login still exists. Try logging in to auto-restore your profile!)")
                 return False
         except Exception as e:
             print(f"[!] Network error: {e}")
