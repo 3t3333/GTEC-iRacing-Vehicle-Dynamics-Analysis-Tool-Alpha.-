@@ -252,9 +252,40 @@ def main():
     telemetry_dir = "telemetry"
     
     while True:
+        main_menu = [
+            (1, "Analyze Telemetry File", "Manual sandbox exploration"),
+            (2, "Automation & SimGit Projects", "Enterprise team workflows"),
+            (3, "Help / About", "Usage guides and documentation"),
+            (4, "Settings", "GUI modes and Cloud configuration")
+        ]
+        session_choice = get_tui_choice(main_menu)
+        if session_choice == 'q':
+            splash.show_exit_screen()
+            return
+        
+        if session_choice == '2':
+            from analysis.projects import run_project_manager
+            run_project_manager()
+            continue
+        
+        if session_choice == '3':
+            splash.show_help_screen()
+            continue
+        
+        if session_choice == '4':
+            from ui.settings import show_settings
+            show_settings()
+            continue
+        if session_choice != '1':
+            print("[!] Invalid selection.")
+            import time
+            time.sleep(1)
+            continue
+        
         if not os.path.exists(telemetry_dir):
             print(f"[!] Directory '{telemetry_dir}' not found. Please create it and add .ld files.")
-            sys.exit(1)
+            input("\nPress Enter to continue...")
+            continue
 
         from core.config import get_data_mode
         data_mode = get_data_mode()
@@ -274,7 +305,7 @@ def main():
         if not ld_files:
             print(f"[!] No telemetry files {allowed_exts} found in '{telemetry_dir}'.")
             print(f"    Current Data Mode: {mode_name} (Change in Settings if needed)")
-            input("\nPress Enter to refresh or 'q' to quit...")
+            input("\nPress Enter to return...")
             continue
 
         print(f"\n  Scanning telemetry files for metadata ({mode_name})... Please wait.")
@@ -333,7 +364,6 @@ def main():
             except Exception:
                 pass
             
-            # Format the display name to include lap count and temps
             if laps_count > 0:
                 display_name = f"{display_name} ({laps_count} Laps | Air: {air_temp_str} | Track: {track_temp_str})"
             else:
@@ -341,56 +371,20 @@ def main():
                 
             temp_files_info.append((laps_count, f, display_name))
             
-        # Sort by display name (alphabetical), then by lap count (biggest first)
         temp_files_info.sort(key=lambda x: (x[2].lower(), -x[0]))
         
-        # Unpack back into ld_files and file_infos to keep rest of code working
         ld_files = [item[1] for item in temp_files_info]
         file_infos = [item[2] for item in temp_files_info]
-
-        main_menu = [
-            (1, "Analyze Telemetry File", "Manual sandbox exploration"),
-            (2, "Automation & SimGit Projects", "Enterprise team workflows"),
-            (3, "Help / About", "Usage guides and documentation"),
-            (4, "Settings", "GUI modes and Cloud configuration")
-        ]
-        session_choice = get_tui_choice(main_menu)
-        if session_choice == 'q':
-            splash.show_exit_screen()
-            return
         
-        if session_choice == '2':
-            from analysis.projects import run_project_manager
-            run_project_manager()
-            continue
-        
-        if session_choice == '3':
-            splash.show_help_screen()
-            continue
-        
-        if session_choice == '4':
-            from ui.settings import show_settings
-            show_settings()
-            continue
-        if session_choice != '1':
-            print("[!] Invalid selection.")
-            import time
-            time.sleep(1)
-            continue
-            
-        selected_files = []
-        go_back = False
-        
-        # Group metadata by file for a cleaner menu
         archive_menu = []
         for i, info in enumerate(file_infos):
-            # Extract main name and subtitle from the existing info string
-            parts = info.split('(')
-            main_name = parts[0].strip()
-            sub_info = "(" + parts[1] if len(parts) > 1 else ""
-            archive_menu.append((i+1, main_name, sub_info))
+            archive_menu.append((i+1, ld_files[i], info))
             
-        archive_menu.append(('p', "Back", "Return to main menu"))
+        archive_menu.append(('p', "Back", "Return to Main Menu"))
+        
+        splash.print_header("Select Telemetry File")
+        print(f"  {C_INFO}Data Mode: {mode_name} | Active Files: {len(ld_files)}{OpenDAV_RESET}")
+        print("  " + "─" * 98)
         
         session_choice = get_tui_choice(archive_menu)
         
@@ -398,15 +392,13 @@ def main():
             splash.show_exit_screen()
             sys.exit(0)
         if session_choice == 'p':
-            go_back = True
-        else:
-            try:
-                choice_idx = int(session_choice) - 1
-                selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
-            except (ValueError, IndexError):
-                go_back = True
-
-        if go_back:
+            continue
+        
+        selected_files = []
+        try:
+            choice_idx = int(session_choice) - 1
+            selected_files.append(os.path.join(telemetry_dir, ld_files[choice_idx]))
+        except (ValueError, IndexError):
             continue
 
         splash.clear_screen()
