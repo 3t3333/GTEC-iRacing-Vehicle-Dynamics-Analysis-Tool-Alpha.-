@@ -34,32 +34,6 @@ def show_settings():
             break
             
         elif choice == '1':
-            print("\n  [1] Legacy Matplotlib (Dark Theme)")
-            print("  [2] Plotly (Interactive HTML)")
-            print("  [3] CustomTkinter (Desktop GUI)")
-            new_mode = input("  Select GUI Mode: ").strip()
-            if new_mode in ['1', '2', '3']:
-                set_gui_mode(int(new_mode))
-                config = load_config()
-                config['gui_mode'] = int(new_mode)
-                save_config(config)
-                print("  [+] GUI Mode saved.")
-                time.sleep(0.5)
-                
-        elif choice == '2':
-            print("\n  [1] Auto-Detect (.ld and .ibt)")
-            print("  [2] Strict MoTeC (.ld only)")
-            print("  [3] Strict iRacing (.ibt only)")
-            new_mode = input("  Select Data Mode: ").strip()
-            if new_mode in ['1', '2', '3']:
-                set_data_mode(int(new_mode))
-                config = load_config()
-                config['data_mode'] = int(new_mode)
-                save_config(config)
-                print("  [+] Data Source Mode saved.")
-                time.sleep(0.5)
-
-        elif choice == '3':
             print("\n  [1] Enable (Auto-install if car/track detected)")
             print("  [2] Disable (Always ask for confirmation)")
             new_mode = input("  Select Mode: ").strip()
@@ -72,7 +46,7 @@ def show_settings():
                 print(f"  [+] Fast Install {'Enabled' if state else 'Disabled'}.")
                 time.sleep(0.5)
 
-        elif choice == '4':
+        elif choice == '2':
             from core.cloud import OpenDAVCloud
             cloud = OpenDAVCloud()
             if cloud.is_logged_in():
@@ -97,7 +71,7 @@ def show_settings():
                     cloud.signup(email, password)
             input("\nPress Enter to continue...")
 
-        elif choice == '5':
+        elif choice == '3':
             config = load_config()
             print(f"\n  Current Supabase URL: {config.get('supabase_url', 'Not Set')}")
             url = input("  New Supabase URL (Enter to skip): ").strip()
@@ -111,7 +85,7 @@ def show_settings():
             print("  [+] API Settings saved.")
             time.sleep(1)
 
-        elif choice == '6':
+        elif choice == '4':
             from core.cloud import OpenDAVCloud
             cloud = OpenDAVCloud()
             if not cloud.is_logged_in():
