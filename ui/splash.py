@@ -110,7 +110,7 @@ def show_splash_screen():
         color_code = get_gradient_color(ratio)
         sys.stdout.write(" " * (PADDING + 5) + color_code + line + OpenDAV_RESET + "\n")
     
-    intro_text = f"INITIALIZING OPENDAV ENGINE v1.1"
+    intro_text = f"     OpenDav-CLI 2.0"
     sys.stdout.write("\n" + " " * (PADDING + (BOX_WIDTH - len(intro_text))//2) + C_INFO + intro_text + "\n")
     
     bar_width = 40
@@ -137,7 +137,7 @@ def show_exit_screen():
     end_time = time.time() + 1.2
     i = 0
     while time.time() < end_time:
-        shut_text = f"Shutting Down OpenDAV Ecosystem {spinner[i % len(spinner)]}"
+        shut_text = f"Closing {spinner[i % len(spinner)]}"
         padding = PADDING + ((BOX_WIDTH - len(shut_text)) // 2)
         sys.stdout.write(f"\r{' ' * padding}{C_DANGER}{shut_text}{OpenDAV_RESET}")
         sys.stdout.flush()

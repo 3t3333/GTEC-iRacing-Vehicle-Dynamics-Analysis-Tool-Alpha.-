@@ -223,6 +223,13 @@ if __name__ == "__main__":
 base_path = getattr(sys, '_MEIPASS', os.getcwd())
 sys.path.insert(0, base_path)
 
+# Point Matplotlib to the bundled FFMPEG binary
+import matplotlib.pyplot as plt
+import os
+ffmpeg_path = os.path.join(base_path, "bin", "ffmpeg.exe")
+if os.path.exists(ffmpeg_path):
+    plt.rcParams['animation.ffmpeg_path'] = ffmpeg_path
+
 # -------------------------------------------------------------
 # Module Imports (Safe now that dependencies are verified)
 # -------------------------------------------------------------
