@@ -17,7 +17,7 @@ ALTER TABLE public.team_members ENABLE ROW LEVEL SECURITY;
 
 -- 2. Grant Access to Authenticated Users
 GRANT USAGE ON SCHEMA public TO authenticated;
-GRANT SELECT ON public.team_members TO authenticated;
+GRANT SELECT, INSERT ON public.team_members TO authenticated;
 
 -- 3. Security Policies for team_members (Non-Recursive)
 DROP POLICY IF EXISTS "Admins can do everything" ON public.team_members;
@@ -155,5 +155,11 @@ CREATE POLICY "SimGit Team Write Access" ON storage.objects
     FOR ALL TO authenticated
     USING (bucket_id = 'opendav_assets' AND public.is_simgit_approved_writer())
     WITH CHECK (bucket_id = 'opendav_assets' AND public.is_simgit_approved_writer());
+	
+	
+-- SQL Fix on 5/17/2026 morning.
+CREATE POLICY "Users can auto-heal their own pending row" ON public.team_members
+		FOR INSERT TO authenicated 
+		WITH CHECK (auth.uid() = id AND role = 'pending'); 
 
 -- Done! SimGit is now ready for production.
