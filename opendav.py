@@ -124,37 +124,9 @@ if __name__ == "__main__":
             import matplotlib.pyplot as plt
             import matplotx
 
-    # Check plotly
-    for _ in range(5): update_screen("Checking dependency: plotly...")
-    try:
-        import plotly.express as px
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
-    except ImportError:
-        if is_frozen:
-            update_screen("Error: plotly missing from bundle!")
-            fatal_error = True
-            time.sleep(2)
-        else:
-            update_screen("Patching: installing plotly...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            import plotly.express as px
-            import plotly.graph_objects as go
-            from plotly.subplots import make_subplots
 
-    # Check customtkinter
-    for _ in range(5): update_screen("Checking dependency: customtkinter...")
-    try:
-        import customtkinter as ctk
-    except ImportError:
-        if is_frozen:
-            update_screen("Error: customtkinter missing from bundle!")
-            fatal_error = True
-            time.sleep(2)
-        else:
-            update_screen("Patching: installing customtkinter...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "customtkinter"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            import customtkinter as ctk
+
+
 
     # Check prompt_toolkit (for TUI)
     for _ in range(5): update_screen("Checking dependency: prompt_toolkit...")
