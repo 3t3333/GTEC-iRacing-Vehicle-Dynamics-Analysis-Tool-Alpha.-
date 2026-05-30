@@ -201,7 +201,7 @@ if __name__ == "__main__":
         print("\n[!] FATAL ERROR: Required dependencies are missing from the executable.")
         print("    PyInstaller can only bundle packages installed in the environment")
         print("    where it is run. Please run the following command in Windows cmd:")
-        print("    pip install numpy pandas scipy matplotlib matplotx plotly customtkinter prompt_toolkit")
+        print("    pip install numpy pandas scipy matplotlib matplotx prompt_toolkit pyyaml requests")
         print("    Then rebuild the EXE.")
         input("\nPress Enter to exit...")
         sys.exit(1)

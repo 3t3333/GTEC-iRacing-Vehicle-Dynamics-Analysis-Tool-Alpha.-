@@ -1,4 +1,3 @@
-import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 def show_ctk_graph(fig, title):

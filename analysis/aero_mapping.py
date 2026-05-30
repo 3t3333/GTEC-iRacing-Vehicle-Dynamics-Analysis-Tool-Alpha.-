@@ -8,7 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.gridspec import GridSpec
 import matplotlib.tri as mtri
 import matplotx
-import plotly.graph_objects as go
 from scipy.interpolate import Rbf
 from scipy.spatial import ConvexHull, cKDTree
 from matplotlib.path import Path

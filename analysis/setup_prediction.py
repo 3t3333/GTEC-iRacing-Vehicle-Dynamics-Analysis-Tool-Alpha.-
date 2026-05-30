@@ -4,9 +4,6 @@ import re
 import numpy as np
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph

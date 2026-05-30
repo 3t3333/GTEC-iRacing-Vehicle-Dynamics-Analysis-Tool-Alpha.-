@@ -8,9 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.gridspec import GridSpec
 import matplotlib.tri as mtri
 import matplotx
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import ui.splash as splash
 from ui.metadata_printer import print_session_metadata
 from ui.graphing import show_ctk_graph

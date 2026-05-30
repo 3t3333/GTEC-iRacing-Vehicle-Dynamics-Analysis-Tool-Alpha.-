@@ -9,7 +9,6 @@ import matplotlib.tri as mtri
 import matplotlib.animation as animation
 from matplotlib.gridspec import GridSpec
 import matplotx
-import plotly.graph_objects as go
 from scipy.interpolate import Rbf
 from scipy.spatial import ConvexHull, cKDTree
 from matplotlib.path import Path
