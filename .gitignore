@@ -71,7 +71,7 @@ vercel_deploy/
 webanalysisfeature/
 vault/
 exports/
-ldparser/
+# ldparser/
 .agents/
 .DS_Store
 *.log
