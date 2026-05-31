@@ -11,7 +11,7 @@ It is designed to bridge the gap between raw data and actionable engineering dec
 
 ---
 
-## Core Philosophy
+## CEore Philosophy
 
 Traditional telemetry suites (like MoTeC or ATLAS) focus heavily on displaying raw time-series data. OpenDAV assumes the role of a data scientist, transforming that raw data into comprehensive mathematical models. Rather than asking the engineer to interpret 10 different suspension traces, OpenDAV computes the exact Aerodynamic Downforce, Pitch Kinematics, and Tire Energy Bias, outputting the result as clear, actionable 3D and 2D topography maps.
 
