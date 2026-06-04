@@ -1,21 +1,22 @@
 {
+    "_version": "2.0",
     "aero": [
         {
-            "feature": "7",
+            "feature": "6",
             "layout": "L2"
         },
         {
-            "feature": "8",
+            "feature": "7",
             "layout": "L2"
         }
     ],
     "AeroMaps": [
         {
-            "feature": "8",
+            "feature": "7",
             "layout": "L2"
         },
         {
-            "feature": "7",
+            "feature": "6",
             "layout": "L2"
         },
         {
