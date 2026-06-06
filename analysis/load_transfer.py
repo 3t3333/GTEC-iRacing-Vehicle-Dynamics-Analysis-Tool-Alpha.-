@@ -97,8 +97,9 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
             RESET = "\033[0m"
             
             def pad_line(text, total_width):
+                import re
                 # Clean ANSI codes to measure exact screen columns
-                raw = re.sub(r'\x1B(?:\[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
+                raw = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
                 raw = re.sub(r'\033\[[0-9;]*m', '', raw) # also handle octal escapes
                 return text + " " * (total_width - len(raw))
 
