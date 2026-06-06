@@ -153,13 +153,13 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
             # Render programmatically to guarantee perfect alignment
             combined_lines = []
             combined_lines.append("                  L1: TLLTD BALANCE (SUMMARY)                       LOAD TRANSFER DISTRIBUTION")
-            combined_lines.append("           ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐")
+            combined_lines.append("           ┌───────────────────────────────────────────┐   ┌───────────────────────────────────────────┐")
             for left_l, right_l in zip(l_lines, r_lines):
                 # Using pad_line to be bulletproof
                 l_padded = pad_line(left_l, 41)
                 r_padded = pad_line(right_l, 41)
                 combined_lines.append(f"           │ {l_padded} │   │ {r_padded} │")
-            combined_lines.append("           └─────────────────────────────────────────┘   └─────────────────────────────────────────┘")
+            combined_lines.append("           └───────────────────────────────────────────┘   └───────────────────────────────────────────┘")
             
             l1_preview = "\n" + "\n".join(combined_lines) + f"""
  
