@@ -96,30 +96,71 @@ def run_tlltd_analyzer(sessions, headless=False, headless_config=None):
             CYAN = '\033[96m'
             RESET = "\033[0m"
             
+            def pad_line(text, total_width):
+                # Clean ANSI codes to measure exact screen columns
+                raw = re.sub(r'\x1B(?:\[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', text)
+                raw = re.sub(r'\033\[[0-9;]*m', '', raw) # also handle octal escapes
+                return text + " " * (total_width - len(raw))
+
             if not headless:
                 print("\n  ┌" + "─" * 98 + "┐")
-                print("  │ " + "[ TLLTD - LATERAL LOAD TRANSFER ]".ljust(96) + " │")
-                print("  │ " + f"Front TLLTD: {CYAN}{avg_tlltd_f:.1f}%{RESET}".ljust(96 + len(CYAN) + len(RESET)) + " │")
-                print("  │ " + f"Rear TLLTD:  {PINK}{avg_tlltd_r:.1f}%{RESET}".ljust(96 + len(PINK) + len(RESET)) + " │")
-                print("  │ " + f"Static Weight Bias: {static_f_bias:.1f}% Front".ljust(96) + " │")
+                print("  │ " + pad_line("[ TLLTD - LATERAL LOAD TRANSFER ]", 96) + " │")
+                print("  │ " + pad_line(f"Front TLLTD: {CYAN}{avg_tlltd_f:.1f}%{RESET}", 96) + " │")
+                print("  │ " + pad_line(f"Rear TLLTD:  {PINK}{avg_tlltd_r:.1f}%{RESET}", 96) + " │")
+                print("  │ " + pad_line(f"Static Weight Bias: {static_f_bias:.1f}% Front", 96) + " │")
                 print("  └" + "─" * 98 + "┘")
 
             file_basename = os.path.basename(file_path)
-            l1_preview = f"""
-        L1: TLLTD BALANCE (SUMMARY)                       LOAD TRANSFER DISTRIBUTION               
- ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐      
- │                                         │   │ FRONT AXLE:  [██████----] {avg_tlltd_f:.1f}%      │      
- │                                         │   │ REAR AXLE:   [████------] {avg_tlltd_r:.1f}%      │      
- │                                         │   │                                         │      
- │                                         │   │  MECHANICAL BALANCE BIAS:               │      
- │        [ AXLE DISTRIBUTION ]            │   │  {'FRONT' if avg_tlltd_f > static_f_bias else 'REAR'} BIASED vs STATIC WEIGHT             │      
- │                                         │   │                                         │      
- │                                         │   │                                         │      
- │                                         │   │                                         │      
- │                                         │   │                                         │      
- │ [X] AXES: FRONT vs REAR                 │   │ [BARS]: PERCENTAGE OF TOTAL TRANSFER    │      
- │ [Y] AXIS: TRANSFER PERCENTAGE (%)       │   │ [TEXT]: EMPIRICAL ROLL STIFFNESS RATIO  │      
- └─────────────────────────────────────────┘   └─────────────────────────────────────────┘      
+            
+            # Create progress bars representing percentage transfer
+            f_pct = max(0, min(10, int(round(avg_tlltd_f / 10.0))))
+            r_pct = max(0, min(10, int(round(avg_tlltd_r / 10.0))))
+            f_bar = "[" + "█" * f_pct + "-" * (10 - f_pct) + "]"
+            r_bar = "[" + "█" * r_pct + "-" * (10 - r_pct) + "]"
+            
+            # Left box lines (exactly 41 chars inside the pipes)
+            l_lines = [
+                "",
+                "",
+                "",
+                "",
+                "[ AXLE DISTRIBUTION ]".center(41),
+                "",
+                "",
+                "",
+                "",
+                "[X] AXES: FRONT vs REAR".ljust(41),
+                "[Y] AXIS: TRANSFER PERCENTAGE (%)".ljust(41)
+            ]
+            
+            # Right box lines (exactly 41 chars inside the pipes)
+            bias_text = "FRONT" if avg_tlltd_f > static_f_bias else "REAR"
+            r_lines = [
+                f"FRONT AXLE:  {f_bar} {avg_tlltd_f:.1f}%".ljust(41),
+                f"REAR AXLE:   {r_bar} {avg_tlltd_r:.1f}%".ljust(41),
+                "",
+                " MECHANICAL BALANCE BIAS:",
+                f"  {bias_text} BIASED vs STATIC WEIGHT",
+                "",
+                "",
+                "",
+                "",
+                "[BARS]: PERCENTAGE OF TOTAL TRANSFER".ljust(41),
+                "[TEXT]: EMPIRICAL ROLL STIFFNESS RATIO".ljust(41)
+            ]
+            
+            # Render programmatically to guarantee perfect alignment
+            combined_lines = []
+            combined_lines.append("                  L1: TLLTD BALANCE (SUMMARY)                       LOAD TRANSFER DISTRIBUTION")
+            combined_lines.append("           ┌─────────────────────────────────────────┐   ┌─────────────────────────────────────────┐")
+            for left_l, right_l in zip(l_lines, r_lines):
+                # Using pad_line to be bulletproof
+                l_padded = pad_line(left_l, 41)
+                r_padded = pad_line(right_l, 41)
+                combined_lines.append(f"           │ {l_padded} │   │ {r_padded} │")
+            combined_lines.append("           └─────────────────────────────────────────┘   └─────────────────────────────────────────┘")
+            
+            l1_preview = "\n" + "\n".join(combined_lines) + f"""
  
   FILE: {file_basename}
   VEHICLE: {metadata.get('car', 'UNKNOWN')}
