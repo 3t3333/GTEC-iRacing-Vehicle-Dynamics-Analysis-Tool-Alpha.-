@@ -1,6 +1,5 @@
-<div align="center">
-  <img src="images/header.png" alt="OpenDAV Header" width="100%" />
-</div>
+<img width="2560" height="1440" alt="Opendavheader" src="https://github.com/user-attachments/assets/ce4aec54-e2a1-492d-997c-1943d753b0af" />
+
 
 # OpenDAV
 **Open-Source Data Analysis & Virtualization**
