@@ -36,7 +36,7 @@ analysis/test_final_parser.py
 analysis/test_tsr_xtea.py
 ui/tui_ref_selector.py
 
-# --s- Binary Telemetry & Data (Large Files) ---
+# --- Binary Telemetry & Data (Large Files) ---
 telemetry/
 projects/
 globaltelemetryreferences/
