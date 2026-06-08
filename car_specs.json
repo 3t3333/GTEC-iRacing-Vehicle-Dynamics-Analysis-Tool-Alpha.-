@@ -30,5 +30,9 @@
     "safetypcporsche911cup": {
         "wheelbase": 1.902,
         "steering_ratio": 14.2
+    },
+    "porsche9922cup": {
+        "wheelbase": 1.902,
+        "steering_ratio": 14.2
     }
 }
