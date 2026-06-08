@@ -70,6 +70,14 @@ def parse_formula(math_str):
             expression = parts[0].strip()
             cond_expr = parts[1].strip()
             
+        # Parse out LIMITS if present (CT only)
+        limits = None
+        if plot_type == 'CT':
+            limits_match = re.search(r'(?i)\s+LIMITS\s+([\d.-]+)\s*,\s*([\d.-]+)', expression)
+            if limits_match:
+                limits = (float(limits_match.group(1)), float(limits_match.group(2)))
+                expression = re.sub(r'(?i)\s+LIMITS\s+[\d.-]+\s*,\s*[\d.-]+', '', expression).strip()
+            
         x_expr, y_expr, z_expr = None, expression, None
         
         if plot_type in ('SP', 'LSRL') and ',' in expression:
@@ -98,7 +106,7 @@ def parse_formula(math_str):
                 z_expr = expression
             
         channels = re.findall(r'\[(.*?)\]', raw_expression)
-        commands.append((plot_type, expression, channels, x_expr, y_expr, z_expr, cond_expr))
+        commands.append((plot_type, expression, channels, x_expr, y_expr, z_expr, cond_expr, limits, raw_expression))
         
     return commands
 
@@ -159,7 +167,7 @@ class SandboxTUI:
                 if self.active_pane == 0: self.active_pane = 1
                 elif self.active_pane in (1, 2): self.active_pane = 3
             else:
-                limit = len(self.current_list) - 1 if self.mode in ('sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_custom_expr', 'sidebar_vms') else 3
+                limit = len(self.current_list) - 1 if self.mode in ('sidebar_calc', 'sidebar_cat', 'sidebar_chan_list', 'sidebar_custom_expr', 'sidebar_vms') else 4
                 if limit < 0: limit = 0
                 self.sb_idx = min(limit, self.sb_idx + 1)
                 if self.sb_idx >= self.sb_scroll + 15:
@@ -369,17 +377,27 @@ class SandboxTUI:
             res.append(("class:sidebar_inactive", "  (Press LEFT to return)\n\n"))
             res.append(("class:action", "  L [channel] \n"))
             res.append(("class:sidebar_inactive", "    Line Graph (Y) vs Distance\n\n"))
-            res.append(("class:action", "  SP [X-channel], [Y-channel] \n"))
-            res.append(("class:sidebar_inactive", "    Scatter Plot (X vs Y)\n\n"))
             res.append(("class:action", "  L [Y] SHADE [Cond] \n"))
-            res.append(("class:sidebar_inactive", "    Shaded Line overlay\n\n"))
-            res.append(("class:action", "  SP [X],[Y] GATE [Cond] \n"))
-            res.append(("class:sidebar_inactive", "    Ghost Cloud Scatter overlay\n\n"))
+            res.append(("class:sidebar_inactive", "    Shaded Line overlay + fill\n\n"))
+            res.append(("class:action", "  L [Y] GATE [Cond] \n"))
+            res.append(("class:sidebar_inactive", "    Gated Line (Hard filter)\n\n"))
+            res.append(("class:action", "  SP [X], [Y] \n"))
+            res.append(("class:sidebar_inactive", "    Scatter Plot (X vs Y)\n\n"))
+            res.append(("class:action", "  SP [X], [Y] SHADE [C] \n"))
+            res.append(("class:sidebar_inactive", "    Shaded Scatter Overlay\n\n"))
+            res.append(("class:action", "  SP [X], [Y] GATE [C] \n"))
+            res.append(("class:sidebar_inactive", "    Gated Scatter (Hard filter)\n\n"))
             res.append(("class:action", "  CT [X], [Y], [Z] \n"))
             res.append(("class:sidebar_inactive", "    3D Triangulated Contour Map\n\n"))
-            res.append(("class:action", "  CT [Aero Balance] (Shortcut) \n"))
-            res.append(("class:sidebar_inactive", "    Maps X=FrontRH, Y=RearRH, Z=Aero\n\n"))
-            res.append(("class:sidebar_inactive", "  *If no comma is used for SP/LSRL,\n    X defaults to Speed (km/h).\n\n"))
+            res.append(("class:action", "  CT [Z] LIMITS min, max \n"))
+            res.append(("class:sidebar_inactive", "    Locks contour scales (eg: 40,50)\n\n"))
+            res.append(("class:sidebar_title", "  [ MATH EXPRESSIONS ]\n\n"))
+            res.append(("class:action", "  smooth([Ch], sec) \n"))
+            res.append(("class:sidebar_inactive", "    Moving average convolution\n\n"))
+            res.append(("class:action", "  derivative([Ch]) \n"))
+            res.append(("class:sidebar_inactive", "    Time derivative (dx/dt)\n\n"))
+            res.append(("class:action", "  integrate([Ch]) \n"))
+            res.append(("class:sidebar_inactive", "    Cumulative time integral\n\n"))
         return res
 
     def _get_panes_text(self):
@@ -671,6 +689,20 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     else: 
                         math_env[ch_name] = ch_data
                 
+                # Helper math libraries for dynamic compiler
+                def smooth_func(ch_data, window_sec, time_arr):
+                    dt = np.mean(np.diff(time_arr))
+                    w = int(round(window_sec / dt))
+                    if w <= 1: return ch_data
+                    return np.convolve(ch_data, np.ones(w)/w, mode='same')
+
+                def deriv_func(ch_data, time_arr):
+                    return np.gradient(ch_data, time_arr)
+
+                def integ_func(ch_data, time_arr):
+                    dt = np.gradient(time_arr)
+                    return np.cumsum(ch_data * dt)
+                
                 # Evaluate and load custom expressions (pre-compile standard MoTeC logicals on the fly)
                 def evaluate_expr(expr, env):
                     eval_str = expr
@@ -678,25 +710,59 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                     eval_str = re.sub(r'\bAND\b', '&', eval_str, flags=re.IGNORECASE)
                     eval_str = re.sub(r'\bOR\b', '|', eval_str, flags=re.IGNORECASE)
                     eval_str = re.sub(r'\bNOT\b', '~', eval_str, flags=re.IGNORECASE)
-                    
+
+                    # Extract and replace raw user channel brackets FIRST
                     found_channels = re.findall(r'\[(.*?)\]', eval_str)
                     for c in found_channels:
                         if c in env: 
                             eval_str = eval_str.replace(f'[{c}]', f"env['{c}']")
                         else: 
                             raise ValueError(f"Channel '{c}' not found.")
-                    return eval(eval_str, {"__builtins__": {}}, {"env": env, "np": np})
+
+                    # Compile math functions LAST
+                    eval_str = re.sub(r'(?i)\bsmooth\s*\(\s*(.*?)\s*,\s*([\d.-]+)\s*\)', r"smooth_func(\1, \2, env['Time'])", eval_str)
+                    eval_str = re.sub(r'(?i)\bderivative\s*\(\s*(.*?)\s*\)', r"deriv_func(\1, env['Time'])", eval_str)
+                    eval_str = re.sub(r'(?i)\bintegrate\s*\(\s*(.*?)\s*\)', r"integ_func(\1, env['Time'])", eval_str)
+                            
+                    # Inject safe execution scope with core vector helpers
+                    safe_globals = {
+                        "__builtins__": {},
+                        "env": env,
+                        "np": np,
+                        "smooth_func": smooth_func,
+                        "deriv_func": deriv_func,
+                        "integ_func": integ_func,
+                        "abs": np.abs,
+                        "sin": np.sin,
+                        "cos": np.cos,
+                        "tan": np.tan,
+                        "sqrt": np.sqrt
+                    }
+                    return eval(eval_str, safe_globals, {})
                 
-                # Evaluate custom expressions in order
-                for name, expr_data in custom_expressions.items():
-                    if isinstance(expr_data, dict):
-                        expr = expr_data.get('formula', '')
-                    else:
-                        expr = str(expr_data)
-                    try:
-                        math_env[name] = evaluate_expr(expr, math_env)
-                    except Exception as e:
-                        math_env[name] = np.zeros_like(speed_kmh) # safe fallback
+                # Multi-pass Dependency Resolution (allows nested custom expressions, like double derivatives, to resolve in any order!)
+                had_evaluation_errors = False
+                resolved_exprs = {}
+                for pass_idx in range(3):
+                    for name, expr_data in custom_expressions.items():
+                        if name in resolved_exprs: 
+                            continue
+                        if isinstance(expr_data, dict):
+                            expr = expr_data.get('formula', '')
+                        else:
+                            expr = str(expr_data)
+                        try:
+                            math_env[name] = evaluate_expr(expr, math_env)
+                            resolved_exprs[name] = True
+                        except Exception as e:
+                            if pass_idx == 2:
+                                print(f"  [!] Custom Expression '{name}' failed: {e}")
+                                had_evaluation_errors = True
+                                math_env[name] = np.zeros_like(speed_kmh) # safe fallback
+                        
+                if had_evaluation_errors:
+                    print("\n  [!] Warnings detected. Failed channels defaulted to zeros (straight line).")
+                    input("  Press Enter to continue to rendering...")
                         
             except Exception as e:
                 print(f"  [!] Error preparing data: {e}"); input("\nPress Enter..."); continue
@@ -713,14 +779,28 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                         commands = parse_formula(f_str)
                         colors = ['#0ea5e9', '#D2751D', '#32CD32', '#FF1493', '#A020F0']
                         
-                        for i, (p_type, p_expr, _, x_expr, y_expr, z_expr, cond_expr) in enumerate(commands):
+                        for i, (p_type, p_expr, _, x_expr, y_expr, z_expr, cond_expr, limits, raw_expr) in enumerate(commands):
                             c_col = colors[i % len(colors)]
                             
+                            # Automatically override base color if the primary plotted channel is a custom expression
+                            try:
+                                base_ch_name = p_expr.strip('[]') if p_type == 'L' else (y_expr.strip('[]') if p_type in ('SP', 'LSRL') else z_expr.strip('[]'))
+                                if base_ch_name in custom_expressions:
+                                    expr_data = custom_expressions[base_ch_name]
+                                    if isinstance(expr_data, dict):
+                                        c_col = expr_data.get('color', c_col)
+                            except:
+                                pass
+                                
                             # Parse condition mask if SHADE or GATE is present
                             cond_mask = None
                             if cond_expr:
                                 try:
                                     cond_mask = evaluate_expr(cond_expr, math_env)
+                                    if cond_mask is not None:
+                                        if not np.issubdtype(cond_mask.dtype, np.bool_):
+                                            raise TypeError("Condition must be a boolean comparison (e.g., [decel] < -0.4).")
+                                            
                                     # Extract name without brackets to look up color
                                     cond_name = cond_expr.strip('[]')
                                     if cond_name in custom_expressions:
@@ -728,22 +808,24 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                                         if isinstance(expr_data, dict):
                                             c_col = expr_data.get('color', c_col)
                                 except Exception as cond_err:
-                                    print(f"  [!] Condition Error on {cond_expr}: {cond_err}")
+                                    raise ValueError(f"Condition Error on '{cond_expr}': {cond_err}")
                             
                             if p_type == 'L':
                                 y_data = evaluate_expr(p_expr, math_env)
                                 
                                 if cond_mask is not None:
-                                    # Shaded / Gated line plot
-                                    # 1. Base Layer (Faint slate background)
-                                    ax.plot(dist, y_data, color='#334155', alpha=0.25, lw=1.2)
-                                    # 2. Filter Layer (Mask non-active points)
-                                    y_shaded = np.copy(y_data).astype(float)
-                                    y_shaded[~cond_mask] = np.nan
-                                    # 3. Highlight Layer (Vibrant overlay)
-                                    ax.plot(dist, y_shaded, c=c_col, lw=2.5, label=f"{p_expr[:12]} (Gated)")
-                                    # 4. Fill Layer
-                                    ax.fill_between(dist, y_shaded, 0, color=c_col, alpha=0.12)
+                                    if 'SHADE' in raw_expr.upper():
+                                        # Shaded Line (Faint background, vibrant highlighted segments, soft area fill)
+                                        ax.plot(dist, y_data, color='#334155', alpha=0.25, lw=1.2)
+                                        y_shaded = np.copy(y_data).astype(float)
+                                        y_shaded[~cond_mask] = np.nan
+                                        ax.plot(dist, y_shaded, c=c_col, lw=2.5, label=f"{p_expr[:12]} (Shaded)")
+                                        ax.fill_between(dist, y_shaded, 0, color=c_col, alpha=0.12)
+                                    else:
+                                        # Gated Line (Hard filter: background is completely gone, only active segments drawn, no fill)
+                                        y_gated = np.copy(y_data).astype(float)
+                                        y_gated[~cond_mask] = np.nan
+                                        ax.plot(dist, y_gated, c=c_col, lw=2.5, label=f"{p_expr[:12]} (Gated)")
                                 else:
                                     # Normal continuous line plot
                                     ax.plot(dist, y_data, c=c_col, lw=1.5, label=p_expr[:15])
@@ -762,11 +844,13 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                                 if i == 0: ax.set_ylabel(y_expr[:20])
                                 
                                 if cond_mask is not None:
-                                    # Gated Scatter Overlay (Ghost Cloud technique)
-                                    # 1. Ghost Layer (Faint background)
-                                    ax.scatter(x_data[~cond_mask], y_data[~cond_mask], color='#222222', s=5, alpha=0.08)
-                                    # 2. Focus Layer (Active highlighted data)
-                                    ax.scatter(x_data[cond_mask], y_data[cond_mask], c=c_col, s=8, alpha=0.7, label=f"{y_expr[:10]} (Active)")
+                                    if 'SHADE' in raw_expr.upper():
+                                        # Shaded Scatter (Entire cloud shown in a faded default theme color, active zones colored in high-contrast c_col)
+                                        ax.scatter(x_data, y_data, color=colors[i % len(colors)], s=5, alpha=0.15)
+                                        ax.scatter(x_data[cond_mask], y_data[cond_mask], color=c_col, s=8, alpha=0.8, label=f"{y_expr[:10]} (Shaded)")
+                                    else:
+                                        # Gated Scatter (Hard filter: background is completely gone, only active points plotted)
+                                        ax.scatter(x_data[cond_mask], y_data[cond_mask], color=c_col, s=8, alpha=0.7, label=f"{y_expr[:10]} (Gated)")
                                     
                                     if p_type == 'LSRL':
                                         x_gated = x_data[cond_mask]
@@ -795,13 +879,21 @@ def run_custom_math_graph(sessions, headless=False, headless_config=None):
                                     
                                     idx = np.isfinite(x_data) & np.isfinite(y_data) & np.isfinite(z_data)
                                     if np.sum(idx) > 10:
-                                        cntr = ax.tricontourf(x_data[idx], y_data[idx], z_data[idx], levels=15, cmap='plasma', extend='both')
+                                        # Handle custom limits locking
+                                        if limits:
+                                            vmin, vmax = limits
+                                            levels = np.linspace(vmin, vmax, 15)
+                                            cntr = ax.tricontourf(x_data[idx], y_data[idx], z_data[idx], levels=levels, vmin=vmin, vmax=vmax, cmap='plasma', extend='both')
+                                        else:
+                                            cntr = ax.tricontourf(x_data[idx], y_data[idx], z_data[idx], levels=15, cmap='plasma', extend='both')
+                                            
                                         if i == 0:
                                             cbar = fig.colorbar(cntr, ax=ax, shrink=0.8, pad=0.02)
                                             cbar.ax.tick_params(labelsize=8)
                                             ax.set_xlabel(x_expr[:15], fontsize=8)
                                             ax.set_ylabel(y_expr[:15], fontsize=8)
-                                            ax.set_title(f"Contour: {z_expr[:20]}", fontsize=10)
+                                            limit_title = f" [{limits[0]} : {limits[1]}]" if limits else ""
+                                            ax.set_title(f"Contour: {z_expr[:20]}{limit_title}", fontsize=10)
                                     else:
                                         ax.text(0.5, 0.5, "Insufficient valid points", color='red', ha='center', va='center')
                                 except Exception as e:
